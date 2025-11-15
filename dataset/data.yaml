@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 6
+names: ['driver', 'no_helmet', 'pillion', 'smoking', 'use_mobile', 'with_helmet']
+
+roboflow:
+  workspace: aa-cqfub
+  project: h3lm-40l0-oid-xd-3dofr
+  version: 5
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/aa-cqfub/h3lm-40l0-oid-xd-3dofr/dataset/5
