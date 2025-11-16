@@ -4,22 +4,6 @@ Comparative study of helmet detection using Traditional Machine Learning (Featur
 
 ---
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Dataset](#dataset)
-- [Methods](#methods)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Results](#results)
-- [Reproducibility](#reproducibility)
-- [Repository Structure](#repository-structure)
-- [Requirements](#requirements)
-- [Citation](#citation)
-- [License](#license)
-
----
-
 ## 🎯 Overview
 
 This project compares two approaches for binary helmet detection classification:
