@@ -1,4 +1,4 @@
-# 🪖 Helmet Detection: Traditional ML vs Deep Learning with LoRA
+# 🪖 Helmet Detection: Classic ML vs CNN with LoRA
 
 Comparative study of helmet detection using Traditional Machine Learning (Feature Engineering) and Deep Learning (Transfer Learning with LoRA fine-tuning).
 
@@ -105,7 +105,7 @@ dataset/
 
 ## 🔬 Methods
 
-### Part 1: Traditional Machine Learning
+### Part 1: Classic Machine Learning
 
 **Preprocessing Pipeline:**
 
@@ -134,7 +134,7 @@ dataset/
 - Random Forest (100 trees)
 - Gradient Boosting (100 estimators)
 
-### Part 2: Deep Learning with LoRA
+### Part 2: CNN with LoRA
 
 **Architecture:**
 
@@ -216,12 +216,12 @@ Machine_Learning_088_095_rs_part_1&2.ipynb
 
 | Method                     | Algorithm          | Test Accuracy | Precision  | Recall     |
 | -------------------------- | ------------------ | ------------- | ---------- | ---------- |
-| **Traditional ML - SET 1** | SVM-RBF            | 88.50%        | 0.8842     | 0.8850     |
-| **Traditional ML - SET 2** | SVM-RBF            | 87.30%        | 0.8725     | 0.8730     |
-| **Traditional ML - SET 3** | SVM-RBF            | 86.80%        | 0.8673     | 0.8680     |
-| **Deep Learning**          | MobileNetV2 + LoRA | **89.52%**    | **0.8955** | **0.8952** |
+| **Traditional ML - SET 1** | SVM-RBF            | 78.36%        | 0.7828     | 0.7836     |
+| **Traditional ML - SET 2** | SVM-RBF            | 82.09%        | 0.8192     | 0.8209     |
+| **Traditional ML - SET 3** | SVM-RBF            | 76.87%        | 0.7678     | 0.7687     |
+| **Deep Learning**          | MobileNetV2 + LoRA | **85.82%**    | **0.8584** | **0.8582** |
 
-**Improvement:** Deep Learning achieves +1.02% accuracy over best Traditional ML method.
+**Improvement:** Deep Learning achieves +3.73% accuracy over best Traditional ML method (SET 2).
 
 ---
 
