@@ -1,9 +1,9 @@
-# 🪖 Helmet Detection: Classic ML vs CNN with LoRA
+# Helmet Detection: Classic ML vs CNN with LoRA
 
 Comparative study of helmet detection using Traditional Machine Learning (Feature Engineering) and Deep Learning (Transfer Learning with LoRA fine-tuning).
 
 ---
-`
+
 ## 🎯 Overview
 
 This project compares two approaches for binary helmet detection classification:
@@ -24,7 +24,7 @@ This project compares two approaches for binary helmet detection classification:
 
 - **Architecture:** MobileNetV2 (ImageNet pre-trained)
 - **Strategy:** LoRA (Low-Rank Adaptation) fine-tuning
-- **Trainable Parameters:** Only 128-dimensional adapter layer (~0.5% of total)
+- **Trainable Parameters:** 164,226 out of 2,422,214 total (6.78%)
 
 ---
 
@@ -36,11 +36,12 @@ This project compares two approaches for binary helmet detection classification:
 
 **Statistics:**
 
-- **Total Images:** 1,334 cropped bounding boxes
-- **Classes:** 2 (no_helmet: 837, with_helmet: 502)
+- **Total Cropped Bounding Boxes:** 1,334 (after filtering)
+- **Classes:** 2 (no_helmet: 832 | with_helmet: 502)
+- **Class Imbalance Ratio:** 1.66:1 (832:502)
 - **Format:** YOLO v11
 - **Version:** 5
-- **Image Size:** 128x128 (resized)
+- **Image Size:** 128×128 (resized from original)
 
 ### Quick Access Options:
 
@@ -93,53 +94,108 @@ dataset/
 
 **Preprocessing Pipeline:**
 
-- Crop bounding boxes from full images
-- Resize to 128×128
-- Data augmentation (Gaussian blur, flip, rotation, brightness/contrast)
+1. Extract bounding boxes from YOLO annotations
+2. Crop objects (minimum 10×10 pixels)
+3. Resize to 128×128
+4. **Class-specific augmentation** (applied only to training set):
+   - Target: Balance minority class (with_helmet) to match majority class
+   - Techniques:
+     - Gaussian blur (p=0.3)
+     - Horizontal flip (p=0.5)
+     - Rotation ±15° (p=0.5)
+     - Brightness/Contrast adjustment (p=0.5)
+     - HSV color shift (p=0.5)
+   - **Result:** 402 → 665 samples (263 augmented images generated)
 
 **Feature Extraction (3 Sets):**
 
-| Set   | Features                                     | Dimensions |
-| ----- | -------------------------------------------- | ---------- |
-| SET 1 | Histogram (96) + HOG (~8100) + LBP (26)      | ~8222      |
-| SET 2 | Color Moments (9) + HOG (~576) + GLCM (20)   | ~605       |
-| SET 3 | Edge (5) + HOG (~432) + Color Histogram (48) | ~485       |
+| Set   | Features                                             | Raw Dims | After PCA | Variance |
+| ----- | ---------------------------------------------------- | -------- | --------- | -------- |
+| SET 1 | Color Histogram (96) + HOG (8,100) + LBP (26)        | 8,222    | 844       | 95.01%   |
+| SET 2 | Color Moments (9) + HOG (576) + GLCM (20)            | 1,793    | 376       | 95.01%   |
+| SET 3 | Edge Features (5) + HOG (432) + Color Histogram (48) | 1,621    | 359       | 95.00%   |
+
+**Feature Details:**
+
+- **Histogram:** RGB color distribution (32 bins/channel)
+- **HOG:** Histogram of Oriented Gradients for shape/edge detection
+- **LBP:** Local Binary Pattern for texture (24 neighbors, radius=3)
+- **Color Moments:** Mean, Standard Deviation, Skewness per RGB channel
+- **GLCM:** Gray-Level Co-occurrence Matrix for texture properties
+- **Edge Features:** Canny edge density + Sobel gradient magnitudes
 
 **Post-processing:**
 
 - StandardScaler normalization
 - PCA (95% variance retention)
-- SMOTE for class imbalance
+- **No SMOTE needed** (classes balanced via augmentation: 665:665)
+- Class weights: 'balanced' in all classifiers
 
 **Algorithms Tested:**
 
-- SVM with RBF kernel
-- SVM with Linear kernel
-- Random Forest (100 trees)
-- Gradient Boosting (100 estimators)
+- SVM with RBF kernel (C=1.0, gamma='scale')
+- SVM with Linear kernel (C=0.5)
+- Random Forest (n_estimators=100, max_depth=20)
+- Gradient Boosting (n_estimators=100, max_depth=5)
+
+**Data Split (Stratified, seed=42):**
+
+- Train: 80% (1,067 samples) → Augmented to 1,330
+- Validation: 10% (133 samples)
+- Test: 10% (134 samples)
 
 ### Part 2: CNN with LoRA
 
 **Architecture:**
 
-- Base: MobileNetV2 (ImageNet pre-trained, frozen)
-- Adapter: Dense(128, ReLU) → Dense(2, Softmax)
-- Total params: ~2.4M (trainable: ~164K, 6.8%)
+```
+MobileNetV2 (ImageNet pre-trained, FROZEN)
+    ↓
+GlobalAveragePooling2D
+    ↓
+Dropout(0.3) → Dense(128, ReLU, L2=0.01)  ← LoRA Adapter 1
+    ↓
+Dropout(0.3) → Dense(2, Softmax)          ← LoRA Classifier
+```
+
+**Parameter Breakdown:**
+
+- **Total Parameters:** 2,422,214 (9.24 MB)
+- **Trainable (LoRA adapters):** 164,226 (641.51 KB, 6.78%)
+- **Frozen (MobileNetV2 base):** 2,257,988 (8.61 MB, 93.22%)
+- **Efficiency:** **14.7× fewer parameters** than full fine-tuning
 
 **Training Configuration:**
 
-- Optimizer: Adam (lr=0.001)
-- Loss: Sparse Categorical Crossentropy
-- Batch size: 32
-- Max epochs: 50
-- Early stopping: patience=10
-- Learning rate reduction: factor=0.5, patience=5
+- **Optimizer:** Adam (initial lr=0.001)
+- **Loss:** Sparse Categorical Crossentropy
+- **Batch Size:** 32 (dynamically calculated from dataset size)
+- **Max Epochs:** 50
+- **Actual Epochs:** 50 (completed full training)
+- **Best Epoch:** 41 (val_accuracy=0.9248)
+- **Callbacks:**
+  - EarlyStopping (monitor='val_loss', patience=10, restore_best_weights=True)
+  - ReduceLROnPlateau (factor=0.5, patience=5):
+    - Triggered at epoch 21: lr → 0.0005
+    - Triggered at epoch 47: lr → 0.00025
+  - ModelCheckpoint (save_best_only=True, monitor='val_accuracy')
+- **Class Weights:**
+  - Class 0 (no_helmet): 0.8023
+  - Class 1 (with_helmet): 1.3271
+- **Random Seed:** 42 (fully reproducible with TensorFlow determinism)
 
-**Data Split:**
+**Data Split (Stratified, seed=42):**
 
-- Train: 80% (with augmentation)
-- Validation: 10%
-- Test: 10%
+- Train: 80% (1,067 samples, normalized 0-1)
+- Validation: 10% (133 samples)
+- Test: 10% (134 samples)
+
+### Handling Class Imbalance:
+
+1. **Class-Specific Augmentation:** Minority class (with_helmet) augmented from 402 → 665 samples
+2. **Class Weights:** Applied in Deep Learning (no_helmet: 0.80, with_helmet: 1.33)
+3. **SMOTE:** Not needed after augmentation (classes balanced 665:665)
+4. **Result:** Models achieve 79-93% accuracy despite original 1.66:1 imbalance
 
 ---
 
@@ -182,7 +238,7 @@ pip install pandas numpy jupyter
    from google.colab import drive
    drive.mount('/content/drive')
    ```
-3. Run all cells sequentially
+3. Run all cells sequentially (**Part 2 depends on Part 1 variables**)
 
 ### Option 2: Local Jupyter
 
@@ -191,21 +247,151 @@ pip install pandas numpy jupyter
 jupyter notebook
 
 # Open notebook
-Machine_Learning_088_095_rs_part_1&2.ipynb
+Machine_Learning - 088 - 095.ipynb
 ```
+
+### ⚠️ Important Notes:
+
+1. **Sequential Execution:** Part 2 requires variables from Part 1 (`cropped_images_for_part2`, `labels_for_part2`, etc.)
+2. **Reproducibility:** All random seeds are set (seed=42) for identical results across runs
+3. **Auto-save:** Results saved to `Google Drive`
+4. **Memory:** Minimum 12GB RAM recommended
+5. **GPU:** Optional but highly recommended for Part 2 (reduces training time ~10×)
 
 ## 📈 Results
 
-### Quantitative Results:
+### Quantitative Performance:
 
-| Method                     | Algorithm          | Test Accuracy | Precision  | Recall     |
-| -------------------------- | ------------------ | ------------- | ---------- | ---------- |
-| **Traditional ML - SET 1** | SVM-RBF            | 78.36%        | 0.7828     | 0.7836     |
-| **Traditional ML - SET 2** | SVM-RBF            | 82.09%        | 0.8192     | 0.8209     |
-| **Traditional ML - SET 3** | SVM-RBF            | 76.87%        | 0.7678     | 0.7687     |
-| **Deep Learning**          | MobileNetV2 + LoRA | **85.82%**    | **0.8584** | **0.8582** |
+| Method                     | Algorithm   | Test Acc   | Precision  | Recall     | F1-Score   | Train Time        |
+| -------------------------- | ----------- | ---------- | ---------- | ---------- | ---------- | ----------------- |
+| **Traditional ML - SET 1** | SVM-RBF     | 79.10%     | 79.31%     | 79.10%     | 78.21%     | 0.57s             |
+| **Traditional ML - SET 2** | SVM-RBF     | 82.84%     | 82.68%     | 82.84%     | 82.63%     | 0.30s             |
+| **Traditional ML - SET 3** | SVM-RBF     | **84.33%** | 84.28%     | 84.33%     | 84.05%     | 0.34s             |
+| **Deep Learning (LoRA)**   | MobileNetV2 | **92.54%** | **92.52%** | **92.54%** | **92.51%** | 66.86s (1.11 min) |
 
-**Improvement:** Deep Learning achieves +3.73% accuracy over best Traditional ML method (SET 2).
+### Key Insights:
+
+**🏆 Best Traditional ML:** SET 3 (Edge+HOG+ColorHist) - 84.33%
+
+**🏆 Best Overall:** Deep Learning (MobileNetV2 + LoRA) - 92.54%
+
+**📊 Performance Comparison:**
+
+- **Accuracy Improvement:** +8.21 percentage points over best Traditional ML
+- **Speed Trade-off:** LoRA is 196× slower (67s vs 0.34s) but achieves superior generalization
+- **Efficiency:** Only 6.78% of model parameters are trained (LoRA advantage)
+
+### Detailed Analysis by Feature Set:
+
+**SET 1 (Histogram + HOG + LBP):**
+
+- Best Algorithm: SVM-RBF
+- Test Accuracy: 79.10% (Val: 83.46%)
+- Overfitting: 19.84% (Train: 98.95%)
+- Training Time: 0.57s
+- Per-class Performance:
+  - No Helmet: Precision=0.79, Recall=0.92, F1=0.85
+  - With Helmet: Precision=0.81, Recall=0.58, F1=0.67
+
+**SET 2 (Color Moments + HOG + GLCM):**
+
+- Best Algorithm: SVM-RBF
+- Test Accuracy: 82.84% (Val: 87.97%)
+- Overfitting: 15.36% (Train: 98.20%)
+- Training Time: 0.30s
+- Per-class Performance:
+  - No Helmet: Precision=0.84, Recall=0.89, F1=0.87
+  - With Helmet: Precision=0.80, Recall=0.72, F1=0.76
+
+**SET 3 (Edge + HOG + Color Histogram):** ⭐ **Best Traditional ML**
+
+- Best Algorithm: SVM-RBF
+- Test Accuracy: 84.33% (Val: 86.47%)
+- Overfitting: 14.24% (Train: 98.57%)
+- Training Time: 0.34s
+- Per-class Performance:
+  - No Helmet: Precision=0.85, Recall=0.92, F1=0.88
+  - With Helmet: Precision=0.84, Recall=0.72, F1=0.77
+
+**Deep Learning (MobileNetV2 + LoRA):** ⭐ **Best Overall**
+
+- Architecture: Transfer Learning with LoRA
+- Test Accuracy: 92.54% (Val: 92.48%)
+- Overfitting: 4.18% (Train: 96.72%, estimated from final epoch)
+- Training Time: 66.86s (1.11 minutes)
+- Best Epoch: 41 out of 50
+- Per-class Performance:
+  - No Helmet: Precision=0.93, Recall=0.95, F1=0.94
+  - With Helmet: Precision=0.92, Recall=0.88, F1=0.90
+
+---
+
+## 📁 Output Files
+
+After running the notebook, these files are auto-saved to Google Drive:
+
+### Part 1 (Traditional ML):
+
+- `best_model_set_1.pkl` - Best SET 1 model (SVM-RBF) + metadata
+- `best_model_set_2.pkl` - Best SET 2 model (SVM-RBF)
+- `best_model_set_3.pkl` - Best SET 3 model (SVM-RBF)
+- `best_overall_model_part1.pkl` - Overall best traditional ML model
+- `config_part1.json` - Full experiment configuration & results
+- `complete_analysis_all_sets.png` - 6-plot comprehensive analysis
+- `set_1_histogramhoglbp_results.png` - SET 1 performance visualization
+- `set_2_colormomentshoggllcm_results.png` - SET 2 performance visualization
+- `set_3_edgehogcolorhist_results.png` - SET 3 performance visualization
+- `analisis_error_detail.png` - 7-plot error breakdown (if error analysis executed)
+- `ringkasan_analisis_error.csv` - Statistical summary table
+
+### Part 2 (Deep Learning):
+
+- `best_model_lora.h5` - Trained LoRA model (Keras HDF5 format, 9.24 MB)
+- `config_lora_model.json` - Architecture + training results
+- `lora_training_history.json` - Epoch-wise metrics (loss, accuracy)
+- `lora_training_history.png` - Training/validation curves
+- `lora_confusion_matrix.png` - Test set performance analysis
+
+**Save Location:**`/content/drive/MyDrive/.....)`
+
+## Reproducibility
+
+This project ensures **100% reproducible results** through:
+
+### Deterministic Seeds (seed=42):
+
+```python
+# Python random
+random.seed(42)
+
+# NumPy random
+np.random.seed(42)
+
+# TensorFlow random
+tf.random.set_seed(42)
+
+# Environment variables
+os.environ['PYTHONHASHSEED'] = '42'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+
+# TensorFlow determinism
+tf.config.experimental.enable_op_determinism()
+```
+
+### Stratified Splits:
+
+- Train/Val/Test splits use `stratify=y` to maintain class distribution
+- Split ratios: 80/10/10 (consistent across both parts)
+
+### Controlled Randomness:
+
+- Augmentation uses seeded transforms
+- Model weight initialization uses `GlorotUniform(seed=42)`
+- Dropout layers use `seed=42`
+- Batch shuffling is consistent across runs
+
+**Result:** Running the notebook multiple times produces **identical metrics** (within floating-point precision).
 
 ---
 
@@ -229,3 +415,5 @@ jupyter>=1.0.0
 ```
 
 **Full requirements:** See `requirements.txt`
+
+---
