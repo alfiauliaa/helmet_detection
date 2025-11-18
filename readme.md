@@ -3,7 +3,7 @@
 Comparative study of helmet detection using Traditional Machine Learning (Feature Engineering) and Deep Learning (Transfer Learning with LoRA fine-tuning).
 
 ---
-
+`
 ## 🎯 Overview
 
 This project compares two approaches for binary helmet detection classification:
