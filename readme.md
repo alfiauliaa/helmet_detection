@@ -1,6 +1,6 @@
-# Helmet Detection: Classic ML vs CNN vs Transfer Learning (MobileNetV2 + LoRA)
+# Helmet Detection: Classic ML vs CNN vs Vision Transformer (ViT + LoRA)
 
-Comparative study of helmet detection using three approaches: Traditional Machine Learning (Feature Engineering), Deep Learning from Scratch, and Transfer Learning with LoRA fine-tuning.
+Comparative study of helmet detection using three approaches: Traditional Machine Learning (Feature Engineering), Deep Learning from Scratch, and Transfer Learning with Vision Transformer using LoRA fine-tuning.
 
 ---
 
@@ -24,14 +24,14 @@ This project compares three approaches for binary helmet detection classificatio
 
 - **Architecture:** Custom CNN (4 Conv Blocks)
 - **Strategy:** Training from random initialization
-- **Trainable Parameters:** ~2.4M parameters (all trainable)
+- **Trainable Parameters:** 1,275,042 parameters (100% trainable)
 
-**3. Transfer Learning + LoRA**
+**3. Transfer Learning - Vision Transformer (ViT + LoRA)**
 
-- **Architecture:** MobileNetV2 (ImageNet pre-trained)
+- **Architecture:** ViT-Base/16 (ImageNet-21k pre-trained)
 - **Strategy:** LoRA (Low-Rank Adaptation) fine-tuning
-- **Trainable Parameters:** 164,226 out of 2,422,214 total (6.78%)
-- **Efficiency:** 14.7× fewer parameters than full fine-tuning
+- **Trainable Parameters:** 1,538 out of 85,800,194 total (0.002%)
+- **Efficiency:** 55,787× fewer parameters than full fine-tuning
 
 ---
 
@@ -118,9 +118,9 @@ dataset/
 
 | Set   | Features                                             | Raw Dims | After PCA | Variance |
 | ----- | ---------------------------------------------------- | -------- | --------- | -------- |
-| SET 1 | Color Histogram (96) + HOG (8,100) + LBP (26)        | 8,222    | 844       | 95.01%   |
-| SET 2 | Color Moments (9) + HOG (576) + GLCM (20)            | 1,793    | 376       | 95.01%   |
-| SET 3 | Edge Features (5) + HOG (432) + Color Histogram (48) | 1,621    | 359       | 95.00%   |
+| SET 1 | Color Histogram (96) + HOG (8,100) + LBP (26)        | 8,222    | 841       | 95.00%   |
+| SET 2 | Color Moments (9) + HOG (576) + GLCM (20)            | 1,793    | 376       | 95.00%   |
+| SET 3 | Edge Features (5) + HOG (432) + Color Histogram (48) | 1,621    | 362       | 95.03%   |
 
 **Feature Details:**
 
@@ -203,49 +203,52 @@ Dense(2, Softmax)
 - Validation: 10% (133 samples)
 - Test: 10% (134 samples)
 
-### Part 3: Transfer Learning (MobileNetV2 + LoRA)
+### Part 3: Transfer Learning (Vision Transformer + LoRA)
 
 **Architecture:**
 
 ```
-MobileNetV2 (ImageNet pre-trained, FROZEN)
-    ↓
-GlobalAveragePooling2D
-    ↓
-Dropout(0.3) → Dense(128, ReLU, L2=0.01)  ← LoRA Adapter 1
-    ↓
-Dropout(0.3) → Dense(2, Softmax)          ← LoRA Classifier
+ViT-Base/16 (ImageNet-21k pre-trained, FROZEN)
+  ↓
+12 Transformer Encoder Layers (768 hidden size, 12 attention heads)
+  ↓
+Classification Head (TRAINABLE via LoRA):
+  Dense(768 → 2, Softmax)
 ```
 
 **Parameter Breakdown:**
 
-- **Total Parameters:** 2,422,214 (9.24 MB)
-- **Trainable (LoRA adapters):** 164,226 (641.51 KB, 6.78%)
-- **Frozen (MobileNetV2 base):** 2,257,988 (8.61 MB, 93.22%)
-- **Efficiency:** **14.7× fewer parameters** than full fine-tuning
+- **Total Parameters:** 85,800,194 (327 MB)
+- **Trainable (LoRA classifier):** 1,538 (6 KB, 0.002%)
+- **Frozen (ViT encoder):** 85,798,656 (327 MB, 99.998%)
+- **Efficiency:** **55,787× fewer parameters** than full fine-tuning
 
 **Training Configuration:**
 
-- **Optimizer:** Adam (initial lr=0.001)
-- **Loss:** Sparse Categorical Crossentropy
-- **Batch Size:** 32 (dynamically calculated from dataset size)
-- **Max Epochs:** 50
-- **Actual Epochs:** 50 (completed full training)
-- **Best Epoch:** 41 (val_accuracy=0.9248)
+- **Optimizer:** AdamW (initial lr=0.0002)
+- **Loss:** CrossEntropyLoss with class weights
+- **Batch Size:** 16
+- **Max Epochs:** 30
+- **Actual Epochs:** 15 (early stopped)
+- **Best Epoch:** 5 (val_accuracy=0.9624)
 - **Callbacks:**
   - EarlyStopping (monitor='val_loss', patience=10, restore_best_weights=True)
-  - ReduceLROnPlateau (factor=0.5, patience=5):
-    - Triggered at epoch 21: lr → 0.0005
-    - Triggered at epoch 47: lr → 0.00025
-  - ModelCheckpoint (save_best_only=True, monitor='val_accuracy')
+  - ReduceLROnPlateau (factor=0.5, patience=5)
 - **Class Weights:**
   - Class 0 (no_helmet): 0.8023
   - Class 1 (with_helmet): 1.3271
-- **Random Seed:** 42 (fully reproducible with TensorFlow determinism)
+- **Random Seed:** 42 (fully reproducible with PyTorch determinism)
+
+**Data Augmentation (training only):**
+
+- Random horizontal flip (p=0.5)
+- Random rotation (±15°)
+- Random affine transform
+- Color jitter (brightness, contrast, saturation, hue)
 
 **Data Split (Stratified, seed=42):**
 
-- Train: 80% (1,067 samples, normalized 0-1)
+- Train: 80% (1,067 samples, resized to 224×224)
 - Validation: 10% (133 samples)
 - Test: 10% (134 samples)
 
@@ -280,9 +283,14 @@ pip install -r requirements.txt
 **Or manually install:**
 
 ```bash
+# Part 1 & 2 (TensorFlow-based)
 pip install roboflow albumentations opencv-python scikit-learn scikit-image
 pip install matplotlib seaborn imbalanced-learn tensorflow>=2.13.0
 pip install pandas numpy jupyter
+
+# Part 3 (PyTorch-based)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install transformers pillow datasets accelerate
 ```
 
 ---
@@ -323,56 +331,86 @@ Machine_Learning - 088 - 095.ipynb
 
 ### Quantitative Performance:
 
-| Method                       | Algorithm   | Test Acc   | Precision  | Recall     | F1-Score   | Train Time        |
-| ---------------------------- | ----------- | ---------- | ---------- | ---------- | ---------- | ----------------- |
-| **Traditional ML - SET 1**   | SVM-RBF     | 79.10%     | 79.31%     | 79.10%     | 78.21%     | 0.57s             |
-| **Traditional ML - SET 2**   | SVM-RBF     | 82.84%     | 82.68%     | 82.84%     | 82.63%     | 0.30s             |
-| **Traditional ML - SET 3**   | SVM-RBF     | 84.33%     | 84.28%     | 84.33%     | 84.05%     | 0.34s             |
-| **Deep Learning (CNN)**      | Custom CNN  | ~85-90%    | ~85-90%    | ~85-90%    | ~85-90%    | ~60-70s (1+ min)  |
-| **Transfer Learning (LoRA)** | MobileNetV2 | **92.54%** | **92.52%** | **92.54%** | **92.51%** | 66.86s (1.11 min) |
+| Method                           | Algorithm   | Test Acc   | Precision  | Recall     | F1-Score   | Train Time        |
+| -------------------------------- | ----------- | ---------- | ---------- | ---------- | ---------- | ----------------- |
+| **Traditional ML - SET 1**       | SVM-RBF     | 79.85%     | 80.69%     | 79.85%     | 78.71%     | 0.86s             |
+| **Traditional ML - SET 2**       | SVM-RBF     | **82.84%** | 82.69%     | 82.84%     | 82.72%     | 0.24s             |
+| **Traditional ML - SET 3**       | SVM-RBF     | **82.84%** | 82.69%     | 82.84%     | 82.72%     | 0.27s             |
+| **Deep Learning (CNN)**          | Custom CNN  | **90.30%** | 90.77%     | 90.30%     | 90.07%     | 272.26s (4.5 min) |
+| **Transfer Learning (ViT+LoRA)** | ViT-Base/16 | **94.78%** | **94.93%** | **94.78%** | **94.80%** | 248.97s (4.2 min) |
 
 ### Key Insights:
 
-**🏆 Best Traditional ML:** SET 3 (Edge+HOG+ColorHist) - 84.33%
+**🏆 Best Traditional ML:** SET 2 & SET 3 (tied) - 82.84%
 
-**🏆 Best Overall:** Transfer Learning (MobileNetV2 + LoRA) - 92.54%
+**🏆 Best Overall:** Transfer Learning (Vision Transformer + LoRA) - 94.78%
 
 **📊 Performance Comparison:**
 
-- **Accuracy Improvement:** +8.21 percentage points over best Traditional ML
-- **Speed Trade-off:** LoRA is 196× slower (67s vs 0.34s) but achieves superior generalization
-- **Efficiency:** Only 6.78% of model parameters are trained (LoRA advantage)
+- **Accuracy Improvement:** +11.94 percentage points over best Traditional ML
+- **ViT vs CNN:** +4.48 percentage points improvement
+- **Efficiency:** ViT uses only 0.002% trainable parameters (55,787× more efficient than full fine-tuning)
 
 ### Detailed Analysis:
 
-**Part 1 - Traditional ML (SET 3 - Best):**
+**Part 1 - Traditional ML:**
+
+**SET 1 (Histogram + HOG + LBP):**
 
 - Best Algorithm: SVM-RBF
-- Test Accuracy: 84.33% (Val: 86.47%)
-- Overfitting: 14.24% (Train: 98.57%)
-- Training Time: 0.34s
+- Test Accuracy: 79.85% (Val: 83.46%)
+- Overfitting: 19.17% (Train: 99.02%)
+- Training Time: 0.86s
+- PCA: 8,222 → 841 features (9.78× compression)
 - Per-class Performance:
-  - No Helmet: Precision=0.85, Recall=0.92, F1=0.88
-  - With Helmet: Precision=0.84, Recall=0.72, F1=0.77
+  - No Helmet: Precision=0.78, Recall=0.94, F1=0.85
+  - With Helmet: Precision=0.85, Recall=0.56, F1=0.67
+
+**SET 2 (Color Moments + HOG + GLCM):** ⭐ **Best Traditional ML (tied)**
+
+- Best Algorithm: SVM-RBF
+- Test Accuracy: 82.84% (Val: 87.22%)
+- Overfitting: 15.81% (Train: 98.65%)
+- Training Time: 0.24s
+- PCA: 1,793 → 376 features (4.77× compression)
+- Per-class Performance:
+  - No Helmet: Precision=0.85, Recall=0.88, F1=0.87
+  - With Helmet: Precision=0.79, Recall=0.74, F1=0.76
+
+**SET 3 (Edge + HOG + Color Histogram):** ⭐ **Best Traditional ML (tied)**
+
+- Best Algorithm: SVM-RBF
+- Test Accuracy: 82.84% (Val: 85.71%)
+- Overfitting: 15.89% (Train: 98.72%)
+- Training Time: 0.27s
+- PCA: 1,621 → 362 features (4.48× compression)
+- Per-class Performance:
+  - No Helmet: Precision=0.85, Recall=0.88, F1=0.87
+  - With Helmet: Precision=0.79, Recall=0.74, F1=0.76
 
 **Part 2 - CNN From Scratch:**
 
-- Architecture: Custom CNN (4 Conv Blocks)
-- Test Accuracy: ~85-90% (varies by training run)
-- Training Time: ~60-70s
-- Strategy: Learning features from scratch
-- Per-class Performance: Balanced across both classes
-
-**Part 3 - Transfer Learning (MobileNetV2 + LoRA):** ⭐ **Best Overall**
-
-- Architecture: Transfer Learning with LoRA
-- Test Accuracy: 92.54% (Val: 92.48%)
-- Overfitting: 4.18% (Train: 96.72%, estimated from final epoch)
-- Training Time: 66.86s (1.11 minutes)
-- Best Epoch: 41 out of 50
+- Architecture: Custom CNN (4 Conv Blocks: 32→64→128→256 filters)
+- Test Accuracy: 90.30% (Val: 90.23%)
+- Overfitting: Low (~6% estimated)
+- Training Time: 272.26s (4.54 minutes)
+- Best Epoch: 36 out of 50 (early stopped at 47)
+- Parameters: 1,275,042 (all trainable, 4.86 MB)
 - Per-class Performance:
-  - No Helmet: Precision=0.93, Recall=0.95, F1=0.94
-  - With Helmet: Precision=0.92, Recall=0.88, F1=0.90
+  - No Helmet: Precision=0.88, Recall=0.98, F1=0.93
+  - With Helmet: Precision=0.95, Recall=0.78, F1=0.86
+
+**Part 3 - Transfer Learning (Vision Transformer + LoRA):** ⭐ **Best Overall**
+
+- Architecture: ViT-Base/16 with LoRA fine-tuning
+- Test Accuracy: 94.78% (Val: 96.24% at best epoch)
+- Overfitting: Very low (train ~94%, test ~95%)
+- Training Time: 248.97s (4.15 minutes)
+- Best Epoch: 5 out of 30 (early stopped at 15)
+- Parameters: 85,800,194 total, **only 1,538 trainable** (0.002%)
+- Per-class Performance:
+  - No Helmet: Precision=0.98, Recall=0.94, F1=0.96
+  - With Helmet: Precision=0.91, Recall=0.96, F1=0.93
 
 ---
 
@@ -403,13 +441,14 @@ After running the notebook, these files are auto-saved to Google Drive:
 - `cnn_scratch_confusion_matrix.png` - Test set performance
 - `part1_vs_part2_comparison.png` - Comparison with Part 1
 
-### Part 3 (Transfer Learning - LoRA):
+### Part 3 (Transfer Learning - ViT):
 
-- `best_model_lora.h5` - Trained LoRA model (Keras HDF5 format, 9.24 MB)
-- `config_lora_model.json` - Architecture + training results
-- `lora_training_history.json` - Epoch-wise metrics (loss, accuracy)
-- `lora_training_history.png` - Training/validation curves
-- `lora_confusion_matrix.png` - Test set performance analysis
+- `best_vit_model.pth` - Trained Vision Transformer model (PyTorch format, 327 MB)
+- `config_vit_model.json` - Architecture + training results
+- `vit_training_history.json` - Epoch-wise metrics (loss, accuracy)
+- `vit_training_history.png` - Training/validation curves
+- `vit_confusion_matrix.png` - Test set performance analysis
+- `vit_error_analysis.png` - Detailed error breakdown
 - `all_parts_comparison_final.png` - Comprehensive comparison (All 3 parts)
 - `all_parts_comparison_final.csv` - Comparison table
 - `comparison_summary_final.json` - Detailed comparison statistics
@@ -431,16 +470,18 @@ random.seed(42)
 # NumPy random
 np.random.seed(42)
 
-# TensorFlow random
+# TensorFlow random (Part 1 & 2)
 tf.random.set_seed(42)
-
-# Environment variables
 os.environ['PYTHONHASHSEED'] = '42'
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
-
-# TensorFlow determinism
 tf.config.experimental.enable_op_determinism()
+
+# PyTorch random (Part 3)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 ```
 
 ### Stratified Splits:
@@ -464,6 +505,7 @@ tf.config.experimental.enable_op_determinism()
 ### Python Packages:
 
 ```
+# Core dependencies
 roboflow>=1.0.0
 albumentations>=1.3.0
 opencv-python>=4.7.0
@@ -472,10 +514,21 @@ scikit-image>=0.20.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 imbalanced-learn>=0.10.0
-tensorflow>=2.13.0
 pandas>=1.5.0
 numpy>=1.24.0
 jupyter>=1.0.0
+
+# Part 1 & 2 (TensorFlow)
+tensorflow>=2.13.0
+
+# Part 3 (PyTorch + Transformers)
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+transformers>=4.30.0
+pillow>=9.0.0
+datasets>=2.12.0
+accelerate>=0.20.0
 ```
 
 **Full requirements:** See `requirements.txt`
@@ -505,44 +558,79 @@ helmet-detection/
 
 ### 1. **Traditional ML (Part 1)**
 
-- ✅ **Fast training** (< 1 second)
+- ✅ **Very fast training** (< 1 second)
 - ✅ **Interpretable** features
-- ❌ Limited accuracy (79-84%)
+- ✅ **Low resource usage**
+- ❌ Limited accuracy (79-83%)
 - ❌ Manual feature engineering required
+- 🏆 **Best SET:** SET 2 & SET 3 (tied at 82.84%)
 
 ### 2. **CNN From Scratch (Part 2)**
 
 - ✅ **Automatic** feature learning
-- ✅ Better than Traditional ML (~85-90%)
-- ⚠️ Requires more training time (~60s)
-- ⚠️ ~2.4M parameters to train
+- ✅ Significantly better than Traditional ML (+7.46%)
+- ✅ Reasonable training time (~4.5 minutes)
+- ⚠️ 1.3M parameters to train
+- ⚠️ Requires more data for optimal performance
+- 🎯 **Accuracy:** 90.30%
 
-### 3. **Transfer Learning + LoRA (Part 3)**
+### 3. **Transfer Learning - Vision Transformer (Part 3)**
 
-- ✅ **Best accuracy** (92.54%)
-- ✅ **Efficient training** (only 6.78% params trained)
-- ✅ Leverages **pretrained knowledge**
-- ✅ Generalizes better (low overfitting: 4.18%)
-- ⚠️ Slightly longer training time (~67s)
+- ✅ **Best accuracy** (94.78%)
+- ✅ **Extremely efficient training** (only 1,538 params trained!)
+- ✅ Leverages **pretrained knowledge** (ImageNet-21k)
+- ✅ Generalizes better (lowest overfitting)
+- ✅ Fast convergence (best at epoch 5)
+- ⚠️ Requires more memory (327 MB model)
+- 🏆 **Winner:** Best overall performance
+
+### Performance Progression:
+
+```
+Traditional ML → CNN → Vision Transformer
+   82.84%    →  90.30%  →    94.78%
+  (+0% baseline) (+7.46%)   (+11.94%)
+```
 
 ### Recommendation:
 
-**Use Transfer Learning (MobileNetV2 + LoRA)** for production deployment due to:
+**Use Vision Transformer (ViT + LoRA)** for production deployment due to:
 
-- Highest accuracy (92.54%)
-- Low overfitting
-- Efficient parameter usage
-- Good balance between performance and training time
+- Highest accuracy (94.78%)
+- Extremely low overfitting
+- Ultra-efficient parameter usage (0.002% trained)
+- Fast training convergence
+- State-of-the-art transformer architecture
+- Good balance between performance and resource efficiency
 
 ---
 
 ## 🔍 Future Improvements
 
-1. **Data Collection:** Increase dataset size for minority class
+1. **Data Collection:** Increase dataset size, especially for minority class
 2. **Advanced Augmentation:** CutMix, MixUp, AutoAugment
-3. **Ensemble Methods:** Combine best models from all parts
-4. **Hyperparameter Tuning:** Grid search for optimal parameters
-5. **Model Compression:** Quantization for edge deployment
-6. **Real-time Detection:** Integrate with YOLO for end-to-end system
+3. **Model Ensemble:** Combine CNN + ViT predictions
+4. **Hyperparameter Tuning:** Optimize learning rate, batch size, etc.
+5. **Full ViT Fine-tuning:** Compare LoRA vs full fine-tuning
+6. **Larger ViT Models:** Test ViT-Large or ViT-Huge variants
+7. **Other Transformers:** Try Swin Transformer, DeiT, BEiT
+8. **Quantization:** INT8 quantization for edge deployment
+9. **Real-time Detection:** Integrate with YOLO for end-to-end system
+10. **Multi-task Learning:** Joint detection + classification
+
+---
+
+## 🙏 Acknowledgments
+
+- Dataset: [Roboflow Universe](https://universe.roboflow.com/aa-cqfub/h3lm-40l0-oid-xd-3dofr)
+- Pretrained Models:
+  - Vision Transformer (ViT-Base/16) from Google Research
+  - ImageNet-21k pre-training
+- Frameworks:
+  - TensorFlow/Keras (Part 1 & 2)
+  - PyTorch + Hugging Face Transformers (Part 3)
+  - scikit-learn, OpenCV
+- LoRA: [Parameter-Efficient Fine-Tuning](https://arxiv.org/abs/2106.09685)
+- Vision Transformer: [An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)
 
 ---
