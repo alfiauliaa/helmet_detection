@@ -252,6 +252,46 @@ Classification Head (TRAINABLE via LoRA):
 - Validation: 10% (133 samples)
 - Test: 10% (134 samples)
 
+### Part 4: Explainable AI (XAI) - Attention Rollout
+
+**Objective:** Visualize and interpret Vision Transformer's decision-making process
+
+**Method: Attention Rollout**
+
+- **Technique:** Native ViT visualization using attention weights
+- **Algorithm:** Aggregates attention across all 12 transformer layers
+- **Output:** Heatmap showing which image regions influenced predictions
+
+**How Attention Rollout Works:**
+
+1. Extract attention weights from all ViT encoder layers
+2. Average attention heads using mean fusion
+3. Apply attention rollout algorithm (matrix multiplication across layers)
+4. Generate spatial attention map from CLS token
+5. Overlay heatmap on original images
+
+**Configuration:**
+
+- **Head Fusion:** Mean (average across 12 attention heads)
+- **Discard Ratio:** 0.1 (drop lowest 10% attention weights)
+- **Visualization:** Original images with attention overlay
+- **Samples Analyzed:** 20 (stratified: 17 correct, 3 incorrect predictions)
+- **Heatmap Colormap:** Jet (red=high attention, blue=low attention)
+
+**Visualization Types:**
+
+1. **Individual Samples:** Detailed 3-panel analysis
+   - Original image with bounding box
+   - Attention rollout heatmap
+   - Overlay on original image
+2. **Grid Overview:** 4×5 grid showing all analyzed samples
+
+**Analysis Focus:**
+
+- Verify model focuses on relevant regions (head/helmet area)
+- Understand failure cases (misclassifications)
+- Validate model interpretability and trustworthiness
+
 ### Handling Class Imbalance:
 
 1. **Class-Specific Augmentation:** Minority class (with_helmet) augmented from 402 → 665 samples
@@ -316,6 +356,21 @@ jupyter notebook
 # Open notebook
 Machine_Learning - 088 - 095.ipynb
 ```
+
+### Running XAI Analysis (Part 4):
+
+**Prerequisites:** Must complete Part 3 first (requires trained ViT model)
+
+```python
+# After training ViT model in Part 3, run Part 4
+
+```
+
+**Output:**
+
+- 20 individual attention visualizations
+- 1 grid overview (4×5 samples)
+- JSON summary with statistics
 
 ### ⚠️ Important Notes:
 
@@ -412,6 +467,55 @@ Machine_Learning - 088 - 095.ipynb
   - No Helmet: Precision=0.98, Recall=0.94, F1=0.96
   - With Helmet: Precision=0.91, Recall=0.96, F1=0.93
 
+### Explainable AI (XAI) Analysis:
+
+**Part 4 - Attention Rollout (Vision Transformer Interpretation):**
+
+**Configuration:**
+
+- XAI Method: Attention Rollout (Native ViT)
+- Samples Analyzed: 20 (17 correct, 3 incorrect)
+- Head Fusion: Mean aggregation
+- Discard Ratio: 0.1
+
+**Key Findings:**
+
+✅ **Correct Predictions (17/20 samples):**
+
+- Model consistently focuses on **head/helmet region** (primary ROI)
+- High attention intensity (red/yellow heatmap) on target area
+- Minimal attention on background/irrelevant features
+- Confidence scores: 73-99% (avg ~89%)
+
+❌ **Incorrect Predictions (3/20 samples):**
+
+- **Sample #69:** True=NoHelm, Pred=WithHelm (58.4% confidence)
+  - Issue: Attention dispersed, not focused on head
+  - Cause: Image blur/poor lighting
+- **Sample #88:** True=NoHelm, Pred=WithHelm (58.6% confidence)
+  - Issue: Dark image, unclear head region
+  - Cause: Low image quality
+- **Sample #72:** True=NoHelm, Pred=WithHelm (59.5% confidence)
+  - Issue: Head too small/far from camera
+  - Cause: Scale variation
+
+**Interpretability Insights:**
+
+1. **Model Behavior is Logical:** ViT focuses on task-relevant regions (head area)
+2. **Failure Patterns Identified:**
+   - Blur/dark images → scattered attention
+   - Small objects → diffused attention
+   - All errors have low confidence (58-60%), indicating model uncertainty
+3. **No Spurious Correlations:** Model doesn't rely on background/context
+4. **Trustworthiness:** Attention patterns align with human reasoning
+
+**Visualization Quality:**
+
+- Heatmaps are smooth and interpretable
+- Color gradient clearly shows attention intensity
+- Overlay preserves original image context
+- Bounding boxes indicate prediction correctness (green=correct, red=wrong)
+
 ---
 
 ## 📁 Output Files
@@ -454,6 +558,18 @@ After running the notebook, these files are auto-saved to Google Drive:
 - `comparison_summary_final.json` - Detailed comparison statistics
 
 **Save Location:** `/content/drive/MyDrive/.....`
+
+### Part 4 (Explainable AI - XAI):
+
+- `XAI_Results_AttentionRollout/` - Main XAI output directory
+  - `attention_rollout_grid.png` - Grid overview (4×5 samples)
+  - `individual_samples/` - Folder with detailed visualizations
+    - `attention_rollout_0070.png` - Sample #70 detailed analysis
+    - `attention_rollout_0031.png` - Sample #31 detailed analysis
+    - ... (20 files total)
+  - `xai_summary.json` - XAI configuration and statistics
+
+**Save Location:** `/content/drive/MyDrive/.....XAI_Results_AttentionRollout/`
 
 ---
 
@@ -529,6 +645,11 @@ transformers>=4.30.0
 pillow>=9.0.0
 datasets>=2.12.0
 accelerate>=0.20.0
+
+# Part 4 (XAI)
+matplotlib>=3.7.0  # Already included
+seaborn>=0.12.0    # Already included
+opencv-python>=4.7.0  # Already included
 ```
 
 **Full requirements:** See `requirements.txt`
@@ -539,7 +660,7 @@ accelerate>=0.20.0
 
 ```
 helmet-detection/
-├── Machine_Learning_088_095.ipynb  # Main notebook (3 parts)
+├── Machine_Learning_088_095.ipynb  # Main notebook (4 parts)
 ├── README.md                       # This file
 ├── requirements.txt                # Dependencies
 ├── dataset/                        # YOLO dataset (optional)
@@ -549,7 +670,8 @@ helmet-detection/
 └── results/                        # Auto-saved outputs
     ├── Part 1: Traditional ML/
     ├── Part 2: CNN From Scratch/
-    └── Part 3: Transfer Learning (LoRA)/
+    ├── Part 3: Transfer Learning (LoRA)/
+    └── Part 4: XAI - Attention Rollout/
 ```
 
 ---
@@ -584,6 +706,15 @@ helmet-detection/
 - ⚠️ Requires more memory (327 MB model)
 - 🏆 **Winner:** Best overall performance
 
+### 4. **Explainable AI - Attention Rollout (Part 4)**
+
+- ✅ **Interpretable** model decisions
+- ✅ **Validates** model trustworthiness
+- ✅ **Identifies** failure patterns (blur, small objects, dark images)
+- ✅ **Confirms** no spurious correlations
+- ✅ Model focuses on **task-relevant** regions (head/helmet)
+- 🎯 **Insight:** Low confidence (58-60%) on all errors → model "knows" when uncertain
+
 ### Performance Progression:
 
 ```
@@ -617,6 +748,9 @@ Traditional ML → CNN → Vision Transformer
 8. **Quantization:** INT8 quantization for edge deployment
 9. **Real-time Detection:** Integrate with YOLO for end-to-end system
 10. **Multi-task Learning:** Joint detection + classification
+11. **Advanced XAI Methods:** Try Grad-CAM, LIME, Integrated Gradients
+12. **Attention Analysis:** Compare attention patterns across layers
+13. **Counterfactual Explanations:** Generate "what-if" scenarios
 
 ---
 
@@ -632,5 +766,8 @@ Traditional ML → CNN → Vision Transformer
   - scikit-learn, OpenCV
 - LoRA: [Parameter-Efficient Fine-Tuning](https://arxiv.org/abs/2106.09685)
 - Vision Transformer: [An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)
+- XAI Techniques:
+  - Attention Rollout: [Quantifying Attention Flow in Transformers](https://arxiv.org/abs/2005.00928)
+  - Vision Transformer Explainability
 
 ---
