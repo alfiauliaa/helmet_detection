@@ -4,6 +4,34 @@ Comparative study of helmet detection using three approaches: Traditional Machin
 
 ---
 
+## 📑 Table of Contents
+
+- [Overview](#-overview)
+- [Dataset](#-dataset)
+  - [Source](#source-roboflow-universe)
+  - [Quick Access Options](#quick-access-options)
+  - [Dataset Structure](#dataset-structure)
+- [Methods](#-methods)
+  - [Part 1: Classic Machine Learning](#part-1-classic-machine-learning)
+  - [Part 2: CNN From Scratch](#part-2-cnn-from-scratch)
+  - [Part 3: Transfer Learning (ViT + LoRA)](#part-3-transfer-learning-vision-transformer--lora)
+  - [Part 4: Explainable AI (XAI)](#part-4-explainable-ai-xai---attention-rollout)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Results](#-results)
+  - [Quantitative Performance](#quantitative-performance)
+  - [Detailed Analysis](#detailed-analysis)
+  - [Explainable AI Analysis](#explainable-ai-xai-analysis)
+- [Output Files](#-output-files)
+- [Reproducibility](#-reproducibility)
+- [Requirements](#-requirements)
+- [Project Structure](#-project-structure)
+- [Key Findings](#-key-findings)
+- [Future Improvements](#-future-improvements)
+- [Acknowledgments](#-acknowledgments)
+
+---
+
 ## 🎯 Overview
 
 This project compares three approaches for binary helmet detection classification:
