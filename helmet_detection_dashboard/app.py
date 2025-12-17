@@ -12,7 +12,7 @@ import pandas as pd
 from pathlib import Path
 import os
 import zipfile
-import tempfile
+import io
 
 # Import local modules
 from model_loader import load_model
@@ -33,40 +33,71 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Enhanced CSS
 st.markdown("""
 <style>
+    /* Main Header - Bigger and Centered */
     .main-header {
-        font-size: 3rem;
-        font-weight: bold;
+        font-size: 4.5rem;
+        font-weight: 900;
         text-align: center;
-        color: #1f77b4;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
+        padding: 1rem 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        letter-spacing: 2px;
     }
+    
     .sub-header {
-        font-size: 1.2rem;
+        font-size: 1.5rem;
         text-align: center;
         color: #666;
         margin-bottom: 2rem;
+        font-weight: 500;
     }
+    
     .success-box {
-        background-color: #d4edda;
+        background-color: #C1E59F;
         padding: 1rem;
         border-radius: 5px;
         border-left: 5px solid #28a745;
     }
+    
     .error-box {
         background-color: #f8d7da;
         padding: 1rem;
         border-radius: 5px;
         border-left: 5px solid #dc3545;
     }
+    
     .xai-section {
         background-color: #f8f9fa;
         padding: 1.5rem;
         border-radius: 10px;
         margin-top: 1rem;
         border: 2px solid #e9ecef;
+    }
+    
+    /* About Section Styling */
+    .about-card {
+        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 0.8rem;
+        border-left: 4px solid #667eea;
+    }
+    
+    .best-model {
+        background: linear-gradient(135deg, #10b98115 0%, #059669 100%);
+        border-left: 4px solid #10b981;
+        font-weight: 600;
+    }
+    
+    .model-comparison {
+        font-size: 0.85rem;
+        line-height: 1.6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -137,28 +168,150 @@ with st.sidebar:
     else:
         st.warning("⚠️ Model Not Loaded")
     
-    # About
+    # Enhanced About Section
     st.markdown("---")
-    st.markdown("### ℹ️ About")
+    st.markdown("### ℹ️ About This System")
+    
     st.markdown("""
-    **Model**: ViT-Base/16  
-    **Accuracy**: 94.78%  
-    **Pretrained**: ImageNet-21k  
-    **Classes**: No Helmet, With Helmet
+    <div class="about-card">
+        <strong>🎯 Current Model</strong><br>
+        Architecture: <strong>Vision Transformer (ViT-Base/16)</strong><br>
+        Pretrained: <strong>ImageNet-21k</strong>
+    </div>
+    """, unsafe_allow_html=True)
     
-    ---
+    st.markdown("### 📊 Model Comparison")
     
-    **Features**:
-    - Single image prediction with XAI
-    - Batch processing with folder upload
-    - Attention rollout visualization
-    """)
+    # Part 1: Traditional ML
+    st.markdown("""
+    <div class="about-card">
+        <div class="model-comparison">
+            <strong>Part 1: Traditional ML</strong><br>
+            Algorithm: <strong>SVM-RBF</strong><br>
+            Features: HOG + LBP + GLCM<br>
+            Accuracy: <span style="color: #f59e0b;">82.84%</span><br>
+            Training: ~0.24s (Fast ⚡)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Part 2: CNN From Scratch
+    st.markdown("""
+    <div class="about-card">
+        <div class="model-comparison">
+            <strong>Part 2: CNN From Scratch</strong><br>
+            Architecture: <strong>Custom CNN (3 Conv Blocks)</strong><br>
+            Parameters: 1.27M (all trainable)<br>
+            Accuracy: <span style="color: #3b82f6;">90.30%</span><br>
+            Training: ~272s (Medium ⏱️)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Part 3: Vision Transformer (BEST)
+    st.markdown("""
+    <div class="about-card best-model">
+        <div class="model-comparison">
+            <strong>🏆 Part 3: Vision Transformer + LoRA</strong><br>
+            <em>(Current Model - BEST)</em><br><br>
+            Architecture: <strong>ViT-Base/16</strong><br>
+            Strategy: Transfer Learning + LoRA<br>
+            Parameters: 85.8M (only 1,538 trainable)<br>
+            <strong>Accuracy: <span style="color: #10b981;">94.78%</span> ✨</strong><br>
+            Precision: <span style="color: #10b981;">94.93%</span><br>
+            Recall: <span style="color: #10b981;">94.78%</span><br>
+            F1-Score: <span style="color: #10b981;">94.80%</span><br>
+            Training: ~249s (Efficient 🚀)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background: rgba(16, 185, 129, 0.1); padding: 0.8rem; border-radius: 8px; margin-top: 0.5rem;">
+        <strong style="color: #10b981;">✅ Why Part 3 is the Best:</strong><br>
+        <ul style="font-size: 0.85rem; margin-top: 0.5rem;">
+            <li>Highest accuracy (+11.94% vs Part 1)</li>
+            <li>Best precision & recall balance</li>
+            <li>Pretrained on 14M images</li>
+            <li>Uses attention mechanism (XAI)</li>
+            <li>Efficient training with LoRA</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: rgba(255,255,255,0.7); font-size: 0.8rem;">
+        <strong>Features</strong><br>
+        ✓ Single image prediction<br>
+        ✓ Batch processing (ZIP support)<br>
+        ✓ Attention visualization (XAI)
+    </div>
+    """, unsafe_allow_html=True)
 
-# Main content
-st.markdown('<p class="main-header">🪖 Helmet Detection Dashboard</p>', 
-            unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Vision Transformer with Explainable AI</p>', 
-            unsafe_allow_html=True)
+
+# # Main content - HEADER Opsi 1: Dark Elegant
+# st.markdown("""
+# <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 2.5rem; border-radius: 20px; margin-bottom: 2rem; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+#     <h1 style="font-size: 4.5rem; font-weight: 900; text-align: center; color: #eee; margin: 0; letter-spacing: 3px; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);">
+#         🏍️🛵🛡️🪖 HELMET DETECTION
+#     </h1>
+#     <div style="width: 200px; height: 4px; background: linear-gradient(90deg, #ffd700, #ffa500, #ffd700); margin: 1rem auto; border-radius: 2px;"></div>
+#     <h2 style="font-size: 1.7rem; text-align: center; color: #ffd700; margin-top: 0.5rem; font-weight: 600; letter-spacing: 2px;">
+#         Vision Transformer + LoRA with Explainable AI
+#     </h2>
+#     <p style="font-size: 1.3rem; text-align: center; color: rgba(255,255,255,0.7); margin-top: 0.5rem; font-weight: 400;">
+#         🎯 Accuracy: <strong style="color: #4ade80;">94.78%</strong> • 
+#         🧠 Architecture: <strong>ViT-Base/16</strong> • 
+#         ⚡ Parameters: <strong>85.8M</strong> (1,538 trainable)
+#     </p>
+# </div>
+# """, unsafe_allow_html=True)
+
+# # Main content - HEADER Opsi 2: Cyberpunk Neon
+# st.markdown("""
+# <div style="background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); padding: 2.5rem; border-radius: 20px; margin-bottom: 2rem; border: 2px solid #00ffff; box-shadow: 0 0 30px rgba(0,255,255,0.3), 0 0 60px rgba(255,0,255,0.2);">
+#     <h1 style="font-size: 4.5rem; font-weight: 900; text-align: center; background: linear-gradient(90deg, #00ffff, #ff00ff, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; letter-spacing: 4px; text-shadow: 0 0 20px rgba(0,255,255,0.5);">
+#         🪖 HELMET DETECTION
+#     </h1>
+#     <div style="width: 300px; height: 2px; background: linear-gradient(90deg, transparent, #00ffff, #ff00ff, #00ffff, transparent); margin: 1rem auto;"></div>
+#     <h2 style="font-size: 1.5rem; text-align: center; color: #00ffff; margin-top: 0.5rem; font-weight: 600; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,255,0.8);">
+#         Vision Transformer + LoRA with Explainable AI
+#     </h2>
+#     <p style="font-size: 1rem; text-align: center; color: rgba(255,255,255,0.8); margin-top: 0.5rem;">
+#         <span style="color: #00ffff;">●</span> Accuracy: <strong style="color: #4ade80;">94.78%</strong> 
+#         <span style="color: #ff00ff;">●</span> Architecture: <strong style="color: #00ffff;">ViT-Base/16</strong> 
+#         <span style="color: #00ffff;">●</span> Trainable: <strong style="color: #ff00ff;">1,538</strong> params
+#     </p>
+# </div>
+# """, unsafe_allow_html=True)
+
+# Main content - HEADER Opsi 5: Professional Corporate
+st.markdown("""
+<div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); padding: 2.5rem; border-radius: 15px; margin-bottom: 2rem; border-top: 5px solid #3498db; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+    <h1 style="font-size: 4rem; font-weight: 700; text-align: center; color: white; margin: 0; letter-spacing: 2px;">
+        🏍️🛵🛡️🪖 HELMET DETECTION 
+    </h1>
+    <div style="width: 150px; height: 3px; background: #3498db; margin: 1rem auto; border-radius: 2px;"></div>
+    <h2 style="font-size: 1.5rem; text-align: center; color: #3498db; margin-top: 0.5rem; font-weight: 600;">
+        Vision Transformer + LoRA with Explainable AI
+    </h2>
+    <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap;">
+        <div style="text-align: center;">
+            <div style="color: #3498db; font-size: 2rem; font-weight: 700;">94.78%</div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Accuracy</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="color: #2ecc71; font-size: 2rem; font-weight: 700;">ViT-Base/16</div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Architecture</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="color: #e74c3c; font-size: 2rem; font-weight: 700;">1.5K</div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Trainable Params</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Check if model is loaded
 if st.session_state.model is None:
@@ -170,7 +323,7 @@ tab1, tab2 = st.tabs(["📸 Single Image", "📁 Batch Processing"])
 
 # ==================== TAB 1: SINGLE IMAGE ====================
 with tab1:
-    st.markdown("## Single Image Prediction with XAI")
+    st.markdown("## Single Image Prediction")
     
     col1, col2 = st.columns([1, 1])
     
@@ -313,27 +466,21 @@ with tab2:
         )
         
         if zip_file is not None:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Extract ZIP
-                with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir)
-                
-                # Find all images
-                image_extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG']
+            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 uploaded_files = []
-                
-                for root, dirs, files in os.walk(temp_dir):
-                    for file in files:
-                        if any(file.endswith(ext) for ext in image_extensions):
-                            file_path = os.path.join(root, file)
-                            # Create file-like object
-                            class FileObj:
-                                def __init__(self, path):
-                                    self.name = os.path.basename(path)
-                                    self.path = path
-                            uploaded_files.append(FileObj(file_path))
-                
-                st.success(f"✅ Found {len(uploaded_files)} images in ZIP file")
+
+                for name in zip_ref.namelist():
+                    if name.lower().endswith(('.jpg', '.jpeg', '.png')):
+                        img_bytes = zip_ref.read(name)
+
+                        class FileObj:
+                            def __init__(self, name, data):
+                                self.name = name
+                                self.data = data
+
+                        uploaded_files.append(FileObj(name, img_bytes))
+
+            st.success(f"✅ Found {len(uploaded_files)} images in ZIP file")
     
     if uploaded_files:
         st.info(f"📁 {len(uploaded_files)} images ready to process")
@@ -359,11 +506,11 @@ with tab2:
                 status_text.text(f"Processing {idx+1}/{len(uploaded_files)}: {file.name}")
                 
                 # Load image
-                if hasattr(file, 'path'):  # ZIP file
-                    image = Image.open(file.path).convert('RGB')
-                else:  # Uploaded file
+                if hasattr(file, 'data'):
+                    image = Image.open(io.BytesIO(file.data)).convert('RGB')
+                else:
                     image = Image.open(file).convert('RGB')
-                
+
                 # Predict
                 pred_class, confidence, all_probs = predict_single(
                     image,
@@ -420,6 +567,93 @@ with tab2:
             with col4:
                 st.metric("Avg Confidence", f"{avg_conf:.1%}")
             
+            # # Visualization
+            # st.markdown("### 📈 Distribution")
+            # col_v1, col_v2 = st.columns(2)
+            
+            # with col_v1:
+            #     fig_pie = plot_batch_statistics(results, 'pie')
+            #     st.pyplot(fig_pie)
+            
+            # with col_v2:
+            #     fig_bar = plot_batch_statistics(results, 'bar')
+            #     st.pyplot(fig_bar)
+            
+            # Detailed Results - Table with Images
+            st.markdown("### 📋 Detailed Results")
+            
+            # Table with thumbnail images
+            for idx, result in enumerate(results):
+                # Load image
+                file = uploaded_files[idx]
+                if hasattr(file, 'data'):
+                    img = Image.open(io.BytesIO(file.data))
+                else:
+                    img = Image.open(file)
+                
+                # Create row with image + info
+                col_img, col_info = st.columns([1, 4])
+                
+                with col_img:
+                    # Thumbnail image (small)
+                    st.image(img, use_container_width=True)
+                
+                with col_info:
+                    # Prediction info
+                    pred_label = 'With Helmet' if result['prediction'] == 1 else 'No Helmet'
+                    pred_color = '#28a745' if result['prediction'] == 1 else '#dc3545'
+                    pred_icon = '✅' if result['prediction'] == 1 else '⚠️'
+                    
+                    st.markdown(f"""
+                    <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid {pred_color}; height: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 1.1rem; font-weight: bold; color: {pred_color};">
+                                    {pred_icon} {pred_label}
+                                </div>
+                                <div style="font-size: 0.85rem; color: #666; margin-top: 0.2rem;">
+                                    📁 {result['filename']}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.3rem; font-weight: bold; color: {pred_color};">
+                                    {result['confidence']:.1%}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #666;">Confidence</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1.5rem; margin-top: 0.8rem; font-size: 0.9rem;">
+                            <div>
+                                <span style="color: #666;">No Helmet:</span>
+                                <strong style="color: #dc3545;">{result['no_helmet_prob']:.1%}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #666;">With Helmet:</span>
+                                <strong style="color: #28a745;">{result['with_helmet_prob']:.1%}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                
+                
+                # Add divider between rows
+                if idx < len(results) - 1:
+                    st.markdown("<hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+            
+            # Create DataFrame for download
+            df = pd.DataFrame(results)
+            df['prediction_label'] = df['prediction'].map({0: 'No Helmet', 1: 'With Helmet'})
+            
+            # Download button
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                "📥 Download Results (CSV)",
+                csv,
+                "helmet_detection_results.csv",
+                "text/csv",
+                use_container_width=True
+            )
             # Visualization
             st.markdown("### 📈 Distribution")
             col_v1, col_v2 = st.columns(2)
@@ -432,29 +666,7 @@ with tab2:
                 fig_bar = plot_batch_statistics(results, 'bar')
                 st.pyplot(fig_bar)
             
-            # Detailed table
-            st.markdown("### 📋 Detailed Results")
-            df = pd.DataFrame(results)
-            df['prediction_label'] = df['prediction'].map({0: 'No Helmet', 1: 'With Helmet'})
-            
-            # Format columns
-            display_df = df[['filename', 'prediction_label', 'confidence', 
-                           'no_helmet_prob', 'with_helmet_prob']].copy()
-            display_df['confidence'] = display_df['confidence'].apply(lambda x: f"{x:.2%}")
-            display_df['no_helmet_prob'] = display_df['no_helmet_prob'].apply(lambda x: f"{x:.2%}")
-            display_df['with_helmet_prob'] = display_df['with_helmet_prob'].apply(lambda x: f"{x:.2%}")
-            
-            st.dataframe(display_df, use_container_width=True, height=300)
-            
-            # Download button
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                "📥 Download Results (CSV)",
-                csv,
-                "helmet_detection_results.csv",
-                "text/csv",
-                use_container_width=True
-            )
+            # ==================== XAI SECTION ====================
             
             # ==================== XAI SECTION ====================
             if show_batch_xai and images_for_xai:

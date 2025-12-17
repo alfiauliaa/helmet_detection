@@ -1,0 +1,63 @@
+{
+  "model": "Custom CNN From Scratch",
+  "strategy": "Deep Learning (no pretrained weights)",
+  "random_seed": 42,
+  "image_size": 128,
+  "batch_size": 32,
+  "epochs_max": 50,
+  "epochs_trained": 47,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "architecture": {
+    "type": "Convolutional Neural Network",
+    "conv_blocks": 4,
+    "filters_per_block": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "dense_layers": [
+      256,
+      128
+    ],
+    "total_parameters": 1275042,
+    "trainable_parameters": 1273122,
+    "trainable_percentage": 100.0,
+    "pretrained": false,
+    "transfer_learning": false,
+    "use_batch_norm": true,
+    "dropout_rate": 0.5
+  },
+  "training": {
+    "training_time_seconds": 272.259046792984,
+    "training_time_minutes": 4.537650779883067,
+    "best_epoch": 36,
+    "best_val_accuracy": 0.902255654335022
+  },
+  "results": {
+    "test_accuracy": 0.9029850959777832,
+    "test_precision": 0.9076529234237937,
+    "test_recall": 0.9029850746268657,
+    "test_f1": 0.9006541144158144,
+    "test_loss": 0.26977917551994324
+  },
+  "confusion_matrix": {
+    "true_negatives": 82,
+    "false_positives": 2,
+    "false_negatives": 11,
+    "true_positives": 39
+  },
+  "per_class_metrics": {
+    "no_helmet": {
+      "precision": 0.8817204301075269,
+      "recall": 0.9761904761904762,
+      "f1_score": 0.9265536723163842
+    },
+    "with_helmet": {
+      "precision": 0.9512195121951219,
+      "recall": 0.78,
+      "f1_score": 0.8571428571428571
+    }
+  }
+}

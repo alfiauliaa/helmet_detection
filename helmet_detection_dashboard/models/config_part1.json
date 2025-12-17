@@ -1,0 +1,115 @@
+{
+  "random_seed": 42,
+  "image_size": 128,
+  "train_test_split": 0.2,
+  "val_test_split": 0.5,
+  "pca_variance": 0.95,
+  "augmentation_enabled": true,
+  "smote_enabled": true,
+  "cross_validation": false,
+  "target_classes": {
+    "1": 0,
+    "5": 1
+  },
+  "class_names": [
+    "no_helmet",
+    "with_helmet"
+  ],
+  "feature_sets": {
+    "SET 1": "Histogram + HOG + LBP",
+    "SET 2": "Color Moments + HOG + GLCM",
+    "SET 3": "Edge + HOG + Color Histogram"
+  },
+  "algorithms": [
+    "SVM-RBF",
+    "SVM-Linear",
+    "RandomForest",
+    "GradientBoosting"
+  ],
+  "best_model": {
+    "feature_set": "SET 2",
+    "algorithm": "SVM-RBF",
+    "test_accuracy": 0.8283582089552238,
+    "val_accuracy": 0.8721804511278195,
+    "train_accuracy": 0.9864661654135338,
+    "precision": 0.8269401342517055,
+    "recall": 0.8283582089552238,
+    "f1_score": 0.8272095842005381,
+    "overfitting": 0.15810795645831,
+    "train_time": 0.2391066551208496
+  },
+  "all_results": [
+    {
+      "feature_set": "SET 1",
+      "algorithm": "SVM-RBF",
+      "test_acc": 0.7985074626865671,
+      "train_time": 0.86
+    },
+    {
+      "feature_set": "SET 1",
+      "algorithm": "SVM-Linear",
+      "test_acc": 0.746268656716418,
+      "train_time": 1.09
+    },
+    {
+      "feature_set": "SET 1",
+      "algorithm": "RandomForest",
+      "test_acc": 0.7313432835820896,
+      "train_time": 4.59
+    },
+    {
+      "feature_set": "SET 1",
+      "algorithm": "GradientBoosting",
+      "test_acc": 0.7014925373134329,
+      "train_time": 86.19
+    },
+    {
+      "feature_set": "SET 2",
+      "algorithm": "SVM-RBF",
+      "test_acc": 0.8283582089552238,
+      "train_time": 0.24
+    },
+    {
+      "feature_set": "SET 2",
+      "algorithm": "SVM-Linear",
+      "test_acc": 0.753731343283582,
+      "train_time": 3.18
+    },
+    {
+      "feature_set": "SET 2",
+      "algorithm": "RandomForest",
+      "test_acc": 0.8134328358208955,
+      "train_time": 1.95
+    },
+    {
+      "feature_set": "SET 2",
+      "algorithm": "GradientBoosting",
+      "test_acc": 0.7686567164179104,
+      "train_time": 38.16
+    },
+    {
+      "feature_set": "SET 3",
+      "algorithm": "SVM-RBF",
+      "test_acc": 0.8283582089552238,
+      "train_time": 0.27
+    },
+    {
+      "feature_set": "SET 3",
+      "algorithm": "SVM-Linear",
+      "test_acc": 0.7313432835820896,
+      "train_time": 3.62
+    },
+    {
+      "feature_set": "SET 3",
+      "algorithm": "RandomForest",
+      "test_acc": 0.7388059701492538,
+      "train_time": 1.92
+    },
+    {
+      "feature_set": "SET 3",
+      "algorithm": "GradientBoosting",
+      "test_acc": 0.7238805970149254,
+      "train_time": 38.4
+    }
+  ]
+}
