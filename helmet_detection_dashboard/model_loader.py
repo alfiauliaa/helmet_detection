@@ -9,6 +9,11 @@ from transformers import ViTForImageClassification, ViTImageProcessor
 from tensorflow import keras
 import cv2
 import streamlit as st
+import sklearn
+import sklearn.svm
+import sklearn.preprocessing
+import sklearn.decomposition
+
 
 from skimage.feature import hog, local_binary_pattern, graycomatrix, graycoprops
 
