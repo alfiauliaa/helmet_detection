@@ -2,6 +2,7 @@ streamlit
 numpy
 pandas
 pillow
+matplotlib
 torch
 torchvision
 transformers
