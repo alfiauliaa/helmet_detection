@@ -5,3 +5,6 @@ pillow
 torch
 torchvision
 transformers
+tensorflow
+opencv-python-headless
+scikit-image
