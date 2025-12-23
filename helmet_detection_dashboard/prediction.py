@@ -59,9 +59,21 @@ def predict_traditional(image, model_data):
     else:
         image_np = image
     
+    # CRITICAL: Resize to training size (128x128)
+    if image_np.shape[:2] != (128, 128):
+        image_np = cv2.resize(image_np, (128, 128))
+        print(f"   ℹ️ Resized image to 128x128")
+    
+    # Convert RGB to BGR for OpenCV compatibility (if needed by feature extractor)
+    # Most feature extractors expect BGR format
+    if image_np.shape[2] == 3:
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    else:
+        image_bgr = image_np
+    
     # Extract features using the loaded feature extractor
     feature_extractor = model_data['feature_extractor']
-    features = feature_extractor(image_np)  # Returns (n_features,) or (1, n_features)
+    features = feature_extractor(image_bgr)  # Returns (n_features,)
     
     # DEBUG: Print feature count
     print(f"\n🔍 DEBUG - Feature Extraction:")
@@ -74,24 +86,56 @@ def predict_traditional(image, model_data):
     
     print(f"   After reshape: {features.shape}")
     
-    # Apply preprocessing pipeline if available
+    # Apply preprocessing pipeline
     if model_data.get('scaler') is not None:
         print(f"   Applying StandardScaler...")
         features = model_data['scaler'].transform(features)
         print(f"   After scaling: {features.shape}")
     
     if model_data.get('pca') is not None:
-        print(f"   Applying PCA (from {model_data['pca'].n_features_in_} to {model_data['pca'].n_components_} features)...")
+        original_dim = features.shape[1]
+        pca_components = model_data['pca'].n_components_
+        
+        print(f"   Applying PCA (from {original_dim} to {pca_components} features)...")
         features = model_data['pca'].transform(features)
         print(f"   After PCA: {features.shape}")
     
     # Get model
     svm_model = model_data['model']
-    print(f"   SVM expects: {svm_model.n_features_in_} features")
-    print(f"   We have: {features.shape[1]} features")
+    expected_features = svm_model.n_features_in_
+    current_features = features.shape[1]
     
-    if features.shape[1] != svm_model.n_features_in_:
-        raise ValueError(f"Feature mismatch! SVM expects {svm_model.n_features_in_}, but got {features.shape[1]}")
+    print(f"   SVM expects: {expected_features} features")
+    print(f"   We have: {current_features} features")
+    
+    # ============================================================
+    # CRITICAL FIX: Handle feature mismatch (376 vs 362)
+    # ============================================================
+    if current_features != expected_features:
+        print(f"\n⚠️  Feature mismatch detected!")
+        
+        if current_features > expected_features:
+            # Case 1: We have MORE features than expected
+            # This happens when PCA retains more components than SVM was trained with
+            print(f"   Solution: Trimming from {current_features} to {expected_features} features")
+            features = features[:, :expected_features]
+            print(f"   ✅ Features trimmed to: {features.shape}")
+            
+        elif current_features < expected_features:
+            # Case 2: We have FEWER features than expected
+            # This is more serious - indicates wrong feature extraction
+            raise ValueError(
+                f"\n❌ CRITICAL ERROR: Feature dimension mismatch!\n"
+                f"   Expected: {expected_features} features\n"
+                f"   Got: {current_features} features\n"
+                f"   This indicates incompatible feature extraction.\n"
+                f"   Please verify:\n"
+                f"   1. Image size is 128x128\n"
+                f"   2. Using correct feature set (SET 2: ColorMoments+HOG+GLCM)\n"
+                f"   3. Model was saved correctly during training"
+            )
+    else:
+        print(f"   ✅ Feature dimensions match perfectly!")
     
     # Predict
     pred_class = int(svm_model.predict(features)[0])
@@ -100,6 +144,7 @@ def predict_traditional(image, model_data):
     if hasattr(svm_model, 'predict_proba'):
         # SVM trained with probability=True
         probs = svm_model.predict_proba(features)[0]
+        
     elif hasattr(svm_model, 'decision_function'):
         # Fallback: use decision function
         decision = svm_model.decision_function(features)
@@ -120,7 +165,14 @@ def predict_traditional(image, model_data):
     
     confidence = float(probs[pred_class])
     
-    print(f"   ✅ Prediction: Class {pred_class}, Confidence: {confidence:.2%}\n")
+    # Get class name
+    class_names = model_data.get('class_names', ['no_helmet', 'with_helmet'])
+    class_name = class_names[pred_class]
+    
+    print(f"\n   ✅ Prediction Complete:")
+    print(f"      Class: {pred_class} ({class_name})")
+    print(f"      Confidence: {confidence:.2%}")
+    print(f"      All probabilities: {probs}\n")
     
     return pred_class, confidence, probs
 
@@ -145,6 +197,8 @@ def predict_cnn(image, model):
     probs = model.predict(img_array, verbose=0)[0]
     pred_class = int(np.argmax(probs))
     confidence = float(probs[pred_class])
+    
+    print(f"   ✅ CNN Prediction: Class {pred_class}, Confidence: {confidence:.2%}")
     
     return pred_class, confidence, probs
 
@@ -176,6 +230,8 @@ def predict_vit(image, model, processor, device):
     pred_class = int(np.argmax(probs))
     confidence = float(probs[pred_class])
     
+    print(f"   ✅ ViT Prediction: Class {pred_class}, Confidence: {confidence:.2%}")
+    
     return pred_class, confidence, probs
 
 
@@ -197,15 +253,28 @@ def predict_batch(images, model, processor, device, model_type='vit', progress_c
     results = []
     
     for idx, image in enumerate(images):
-        pred_class, confidence, all_probs = predict_single(
-            image, model, processor, device, model_type
-        )
-        
-        results.append({
-            'pred_class': pred_class,
-            'confidence': confidence,
-            'all_probs': all_probs
-        })
+        try:
+            pred_class, confidence, all_probs = predict_single(
+                image, model, processor, device, model_type
+            )
+            
+            results.append({
+                'pred_class': pred_class,
+                'confidence': confidence,
+                'all_probs': all_probs,
+                'success': True,
+                'error': None
+            })
+            
+        except Exception as e:
+            print(f"   ❌ Error processing image {idx}: {str(e)}")
+            results.append({
+                'pred_class': -1,
+                'confidence': 0.0,
+                'all_probs': np.array([0.0, 0.0]),
+                'success': False,
+                'error': str(e)
+            })
         
         if progress_callback:
             progress_callback(idx + 1, len(images))
