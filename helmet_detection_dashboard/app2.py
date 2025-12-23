@@ -369,6 +369,7 @@ st.markdown("""
     </h1>
     <div style="width: 150px; height: 3px; background: #3498db; margin: 1rem auto; border-radius: 2px;"></div>
     <h2 style="font-size: 1.5rem; text-align: center; color: #3498db; margin-top: 0.5rem; font-weight: 600;">
+        Best Model:
         Vision Transformer + LoRA with Explainable AI
     </h2>
     <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap;">
