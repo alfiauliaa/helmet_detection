@@ -13,6 +13,8 @@ from pathlib import Path
 import os
 import zipfile
 import io
+from pathlib import Path
+
 
 # Force reload modules to avoid cache issues
 import sys
@@ -127,6 +129,9 @@ with st.sidebar:
     
     # ========== TAMBAHAN BARU: Model Selection ==========
     st.markdown("### 🎯 Select Model")
+    BASE_DIR = Path(__file__).resolve().parent
+    MODELS_DIR = BASE_DIR / "models"
+
     
     model_choice = st.selectbox(
         "Choose Model Part",
@@ -139,22 +144,25 @@ with st.sidebar:
         help="Select which model to use for prediction"
     )
     
+    st.write("📁 App directory:", BASE_DIR)
+    st.write("📁 Models directory:", MODELS_DIR)
+
     # Determine model type and default path
     if "Part 3" in model_choice:
         model_type = 'vit'
-        default_path = "models/part3_vit_model.pth"
+        default_path = str(MODELS_DIR / "part3_vit_model.pth")
         model_name_display = "Vision Transformer (ViT-Base/16)"
         xai_supported = True
         model_description = "Uses self-attention mechanism, pretrained on ImageNet-21k"
     elif "Part 2" in model_choice:
         model_type = 'cnn'
-        default_path = "models/part2_cnn_model.h5"
+        default_path = str(MODELS_DIR / "part2_cnn_model.h5")
         model_name_display = "CNN (3 Conv Blocks)"
         xai_supported = False
         model_description = "Custom CNN architecture trained from random initialization"
     elif "Part 1" in model_choice:
         model_type = 'traditional'
-        default_path = "models/part1_svm_model.pkl"
+        default_path = str(MODELS_DIR / "part1_svm_model.pkl")
         model_name_display = "SVM-RBF + Manual Features"
         xai_supported = False
         model_description = "HOG + LBP + GLCM features with Support Vector Machine"
@@ -171,7 +179,7 @@ with st.sidebar:
     # Model path (UPDATE: ganti value)
     model_path = st.text_input(
         "Model Path",
-        value=default_path,  # GANTI dari "models/best_vit_model.pth"
+        value=default_path, 
         help="Path to the saved model file"
     )
     
