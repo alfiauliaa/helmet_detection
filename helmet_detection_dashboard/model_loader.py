@@ -8,6 +8,8 @@ import numpy as np
 from transformers import ViTForImageClassification, ViTImageProcessor
 from tensorflow import keras
 import cv2
+import streamlit as st
+
 from skimage.feature import hog, local_binary_pattern, graycomatrix, graycoprops
 
 # =====================================================
@@ -268,6 +270,7 @@ def detect_and_extract_features(image, expected_features):
 # =====================================================
 # MODEL LOADERS
 # =====================================================
+@st.cache_resource
 
 def load_model(model_path, device, model_type='vit'):
     """
