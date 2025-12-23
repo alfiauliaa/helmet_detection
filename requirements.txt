@@ -10,4 +10,4 @@ transformers
 tensorflow
 opencv-python-headless
 scikit-image
-sklearn
+scikit-learn
