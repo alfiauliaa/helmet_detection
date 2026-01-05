@@ -192,107 +192,45 @@ with st.sidebar:
     )
     
     # Load model button (UPDATE logic)
-    # Load model button (UPDATE logic)
-if st.button("🚀 Load Model", type="primary", use_container_width=True):
-    with st.spinner(f"Loading {model_name_display}..."):
-        try:
-            # Clear previous model from session state
-            if 'model' in st.session_state:
-                st.session_state.model = None
-            if 'processor' in st.session_state:
-                st.session_state.processor = None
-            
-            # Determine device
-            if model_type == 'vit':
-                # Only ViT uses GPU
-                if device_option == "Auto":
-                    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                elif device_option == "CUDA":
-                    if torch.cuda.is_available():
-                        device = torch.device('cuda')
+    if st.button("🚀 Load Model", type="primary", use_container_width=True):
+        with st.spinner(f"Loading {model_name_display}..."):
+            try:
+                # Determine device
+                if model_type == 'vit':
+                    # Only ViT uses GPU
+                    if device_option == "Auto":
+                        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                    elif device_option == "CUDA":
+                        if torch.cuda.is_available():
+                            device = torch.device('cuda')
+                        else:
+                            st.error("CUDA not available! Using CPU instead.")
+                            device = torch.device('cpu')
                     else:
-                        st.error("CUDA not available! Using CPU instead.")
                         device = torch.device('cpu')
                 else:
-                    device = torch.device('cpu')
-            else:
-                # CNN & Traditional ML always use CPU
-                device = 'cpu'
-                if device_option == "CUDA":
-                    st.info("ℹ️ CNN and Traditional ML models run on CPU only")
-            
-            st.info(f"🔄 Loading model from: {model_path}")
-            
-            # Load model
-            model, processor = load_model(model_path, device, model_type)
-            
-            # ✅ CRITICAL: Validate processor for ViT
-            if model_type == 'vit':
-                if processor is None:
-                    raise ValueError(
-                        "❌ CRITICAL ERROR: Processor is None!\n"
-                        "This is a fatal error - ViT model requires a processor.\n"
-                        "Please check:\n"
-                        "1. HuggingFace transformers library is installed correctly\n"
-                        "2. Internet connection is working (for downloading processor)\n"
-                        "3. model_loader.py is returning processor correctly"
-                    )
+                    # CNN & Traditional ML always use CPU
+                    device = 'cpu'
+                    if device_option == "CUDA":
+                        st.info("ℹ️ CNN and Traditional ML models run on CPU only")
                 
-                st.success(f"✅ Processor loaded: {type(processor).__name__}")
+                # Load model
+                model, processor = load_model(model_path, device, model_type)
                 
-                # Additional validation - try to use processor
-                try:
-                    from PIL import Image
-                    dummy_img = Image.new('RGB', (224, 224))
-                    test_inputs = processor(images=dummy_img, return_tensors="pt")
-                    st.success("✅ Processor validation: Working correctly")
-                except Exception as e:
-                    raise ValueError(f"❌ Processor validation failed: {str(e)}")
-            
-            # Store in session state
-            st.session_state.model = model
-            st.session_state.processor = processor
-            st.session_state.device = device
-            st.session_state.model_type = model_type
-            st.session_state.xai_supported = xai_supported
-            st.session_state.model_name = model_name_display
-            
-            st.success(f"✅ {model_name_display} loaded successfully!")
-            
-            # Show detailed info
-            with st.expander("📋 Model Details", expanded=False):
-                st.write(f"**Model Type:** {model_type}")
-                st.write(f"**Device:** {device}")
-                st.write(f"**XAI Supported:** {xai_supported}")
-                st.write(f"**Model Object:** {type(model)}")
-                if processor is not None:
-                    st.write(f"**Processor Object:** {type(processor)}")
-                else:
-                    st.write(f"**Processor:** None (not needed for this model)")
-            
-            st.balloons()
-            
-        except FileNotFoundError as e:
-            st.error(f"❌ Model file not found!")
-            st.error(f"Path: {model_path}")
-            st.info("📁 Please check if the model file exists in the correct directory")
-            
-        except Exception as e:
-            st.error(f"❌ Error loading model: {str(e)}")
-            
-            # Show detailed error info
-            with st.expander("🔍 Error Details", expanded=True):
-                st.exception(e)
+                # Store in session state
+                st.session_state.model = model
+                st.session_state.processor = processor
+                st.session_state.device = device
+                st.session_state.model_type = model_type
+                st.session_state.xai_supported = xai_supported
+                st.session_state.model_name = model_name_display
                 
-                st.markdown("### 💡 Troubleshooting:")
-                st.markdown("""
-                1. **Check model file exists**: Verify the path is correct
-                2. **Check transformers library**: `pip install transformers --upgrade`
-                3. **Check internet connection**: Processor needs to download from HuggingFace
-                4. **Clear Streamlit cache**: Settings → Clear Cache
-                5. **Restart the app**: Sometimes helps with import issues
-                """)
-    
+                st.success(f"✅ {model_name_display} loaded successfully!")
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"❌ Error loading model: {str(e)}")
+                st.exception(e)  # Show full traceback
     
     # Model status
     st.markdown("---")
