@@ -275,8 +275,8 @@ def detect_and_extract_features(image, expected_features):
 # =====================================================
 # MODEL LOADERS
 # =====================================================
-@st.cache_resource
 
+# ✅ FIX: Remove @st.cache_resource to prevent caching issues
 def load_model(model_path, device, model_type='vit'):
     """
     Load model based on type
@@ -295,15 +295,24 @@ def load_model(model_path, device, model_type='vit'):
     
     if model_type == 'vit':
         # Part 3: Vision Transformer
-        return load_vit_model(model_path, device)
+        model, processor = load_vit_model(model_path, device)
+        
+        # ✅ CRITICAL: Verify processor is not None
+        if processor is None:
+            raise ValueError("❌ CRITICAL: Processor is None after loading ViT model!")
+        
+        print(f"✅ Processor validation: {processor is not None}")
+        return model, processor
     
     elif model_type == 'cnn':
         # Part 2: CNN From Scratch
-        return load_cnn_model(model_path), None
+        model = load_cnn_model(model_path)
+        return model, None
     
     elif model_type == 'traditional':
         # Part 1: Traditional ML (SVM-RBF)
-        return load_traditional_model(model_path), None
+        model = load_traditional_model(model_path)
+        return model, None
     
     else:
         raise ValueError(f"Unknown model type: {model_type}")
@@ -315,8 +324,18 @@ def load_vit_model(model_path, device):
     model_name = 'google/vit-base-patch16-224'
     num_classes = 2
     
+    print(f"🔄 Loading ViT processor from {model_name}...")
+    
     # Load processor
     processor = ViTImageProcessor.from_pretrained(model_name)
+    
+    # ✅ CRITICAL: Verify processor loaded successfully
+    if processor is None:
+        raise ValueError("❌ Failed to load ViT processor from HuggingFace!")
+    
+    print(f"✅ Processor loaded: {type(processor)}")
+    
+    print(f"🔄 Loading ViT model architecture...")
     
     # Load model architecture
     model = ViTForImageClassification.from_pretrained(
@@ -325,6 +344,8 @@ def load_vit_model(model_path, device):
         ignore_mismatched_sizes=True,
         attn_implementation="eager"  # For attention rollout
     )
+    
+    print(f"🔄 Loading trained weights from {model_path}...")
     
     # Load trained weights
     checkpoint = torch.load(model_path, map_location=device)
@@ -341,6 +362,11 @@ def load_vit_model(model_path, device):
     print(f"✅ Vision Transformer loaded successfully!")
     print(f"   Device: {device}")
     print(f"   Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"   Processor type: {type(processor)}")
+    
+    # ✅ CRITICAL: Final verification before return
+    if processor is None:
+        raise ValueError("❌ CRITICAL ERROR: Processor became None before return!")
     
     return model, processor
 
@@ -458,56 +484,3 @@ def load_traditional_model(model_path):
             print(f"   Auto-detection will now attempt to find the correct set.")
         
         raise Exception(f"Failed to load Traditional ML model: {str(e)}")
-    
-# """
-# Model Loader Module
-# Load Vision Transformer model from checkpoint
-# """
-
-# import torch
-# from transformers import ViTForImageClassification, ViTImageProcessor
-
-# def load_model(model_path, device):
-#     """
-#     Load Vision Transformer model from checkpoint
-    
-#     Args:
-#         model_path: Path to saved model (.pth file)
-#         device: torch device (cuda/cpu)
-        
-#     Returns:
-#         model: Loaded ViT model
-#         processor: ViT image processor
-#     """
-    
-#     model_name = 'google/vit-base-patch16-224'
-#     num_classes = 2
-    
-#     # Load processor
-#     processor = ViTImageProcessor.from_pretrained(model_name)
-    
-#     # Load model architecture
-#     model = ViTForImageClassification.from_pretrained(
-#         model_name,
-#         num_labels=num_classes,
-#         ignore_mismatched_sizes=True,
-#         attn_implementation="eager"  # For attention rollout
-#     )
-    
-#     # Load trained weights
-#     checkpoint = torch.load(model_path, map_location=device)
-    
-#     # Handle different checkpoint formats
-#     if 'model_state_dict' in checkpoint:
-#         model.load_state_dict(checkpoint['model_state_dict'])
-#     else:
-#         model.load_state_dict(checkpoint)
-    
-#     # Move to device and set to eval mode
-#     model = model.to(device)
-#     model.eval()
-    
-#     print(f"✅ Model loaded from {model_path}")
-#     print(f"   Device: {device}")
-    
-#     return model, processor
