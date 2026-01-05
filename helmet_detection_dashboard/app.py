@@ -652,263 +652,300 @@ with tab2:
                 num_xai_samples = st.slider("Number of XAI samples", 4, 20, 8, 4)
         
         # ==================== TAB 2: BATCH PROCESSING ====================
-# Replace the entire "Process Batch" button section
-
-if st.button("🚀 Process Batch", type="primary", use_container_width=True):
-    progress_bar = st.progress(0)
-    status_text = st.empty()
+# ==================== TAB 2: BATCH PROCESSING ====================
+with tab2:
+    st.markdown("## Batch Image Processing")
     
-    results = []
-    images_for_xai = []
-    
-    for idx, file in enumerate(uploaded_files):
-        status_text.text(f"Processing {idx+1}/{len(uploaded_files)}: {file.name}")
-        
-        try:
-            # Load image
-            if hasattr(file, 'data'):
-                image = Image.open(io.BytesIO(file.data)).convert('RGB')
-            else:
-                image = Image.open(file).convert('RGB')
-
-            # ✅ FIX: Add model_type parameter
-            pred_class, confidence, all_probs = predict_single(
-                image,
-                st.session_state.model,
-                st.session_state.processor,
-                st.session_state.device,
-                model_type=st.session_state.model_type  # ✅ CRITICAL FIX!
-            )
-            
-            results.append({
-                'filename': file.name,
-                'prediction': pred_class,
-                'confidence': confidence,
-                'no_helmet_prob': all_probs[0],
-                'with_helmet_prob': all_probs[1]
-            })
-            
-            # Store images for XAI (only for ViT)
-            if show_batch_xai and st.session_state.get('xai_supported', False):
-                images_for_xai.append({
-                    'image': image,
-                    'filename': file.name,
-                    'pred_class': pred_class,
-                    'confidence': confidence
-                })
-        
-        except Exception as e:
-            st.error(f"❌ Error processing {file.name}: {str(e)}")
-            # Add failed result
-            results.append({
-                'filename': file.name,
-                'prediction': -1,
-                'confidence': 0.0,
-                'no_helmet_prob': 0.0,
-                'with_helmet_prob': 0.0
-            })
-        
-        progress_bar.progress((idx + 1) / len(uploaded_files))
-    
-    status_text.text("✅ Processing complete!")
-    st.session_state.batch_results = results
-    st.session_state.images_for_xai = images_for_xai
-    
-    # ==================== RESULTS SECTION ====================
-    st.markdown("---")
-    st.markdown("## 📊 Batch Results")
-    
-    # Summary statistics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Filter out failed predictions (-1)
-    valid_results = [r for r in results if r['prediction'] != -1]
-    
-    total = len(valid_results)
-    no_helmet = sum(1 for r in valid_results if r['prediction'] == 0)
-    with_helmet = sum(1 for r in valid_results if r['prediction'] == 1)
-    avg_conf = np.mean([r['confidence'] for r in valid_results]) if valid_results else 0.0
-    
-    with col1:
-        st.metric("Total Images", len(results))
-    with col2:
-        st.metric("No Helmet", no_helmet, 
-                 delta=f"{no_helmet/total*100:.1f}%" if total > 0 else "0%",
-                 delta_color="inverse")
-    with col3:
-        st.metric("With Helmet", with_helmet,
-                 delta=f"{with_helmet/total*100:.1f}%" if total > 0 else "0%",
-                 delta_color="normal")
-    with col4:
-        st.metric("Avg Confidence", f"{avg_conf:.1%}")
-    
-    # Show failed predictions if any
-    failed_count = len(results) - len(valid_results)
-    if failed_count > 0:
-        st.warning(f"⚠️ {failed_count} image(s) failed to process")
-    
-    # Detailed Results - Table with Images
-    st.markdown("### 📋 Detailed Results")
-    
-    # Table with thumbnail images
-    for idx, result in enumerate(results):
-        # Skip failed predictions for display
-        if result['prediction'] == -1:
-            continue
-            
-        # Load image
-        file = uploaded_files[idx]
-        if hasattr(file, 'data'):
-            img = Image.open(io.BytesIO(file.data))
-        else:
-            img = Image.open(file)
-        
-        # Create row with image + info
-        col_img, col_info = st.columns([1, 4])
-        
-        with col_img:
-            # Thumbnail image (small)
-            st.image(img, use_container_width=True)
-        
-        with col_info:
-            # Prediction info
-            pred_label = 'With Helmet' if result['prediction'] == 1 else 'No Helmet'
-            pred_color = '#28a745' if result['prediction'] == 1 else '#dc3545'
-            pred_icon = '✅' if result['prediction'] == 1 else '⚠️'
-            
-            st.markdown(f"""
-            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid {pred_color}; height: 100%;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: {pred_color};">
-                            {pred_icon} {pred_label}
-                        </div>
-                        <div style="font-size: 0.85rem; color: #666; margin-top: 0.2rem;">
-                            📁 {result['filename']}
-                        </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 1.3rem; font-weight: bold; color: {pred_color};">
-                            {result['confidence']:.1%}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #666;">Confidence</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 1.5rem; margin-top: 0.8rem; font-size: 0.9rem;">
-                    <div>
-                        <span style="color: #666;">No Helmet:</span>
-                        <strong style="color: #dc3545;">{result['no_helmet_prob']:.1%}</strong>
-                    </div>
-                    <div>
-                        <span style="color: #666;">With Helmet:</span>
-                        <strong style="color: #28a745;">{result['with_helmet_prob']:.1%}</strong>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Add divider between rows
-        if idx < len(results) - 1:
-            st.markdown("<hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
-    
-    # Create DataFrame for download
-    df = pd.DataFrame(valid_results)
-    df['prediction_label'] = df['prediction'].map({0: 'No Helmet', 1: 'With Helmet'})
-    
-    # Download button
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        "📥 Download Results (CSV)",
-        csv,
-        "helmet_detection_results.csv",
-        "text/csv",
-        use_container_width=True
+    # Upload method selection
+    upload_method = st.radio(
+        "Upload Method",
+        options=["📁 Multiple Files", "🗂️ ZIP Folder"],
+        horizontal=True,
+        help="Choose how to upload images"
     )
     
-    # Visualization
-    st.markdown("### 📈 Distribution")
-    col_v1, col_v2 = st.columns(2)
+    uploaded_files = []
     
-    with col_v1:
-        fig_pie = plot_batch_statistics(valid_results, 'pie')
-        st.pyplot(fig_pie)
-    
-    with col_v2:
-        fig_bar = plot_batch_statistics(valid_results, 'bar')
-        st.pyplot(fig_bar)
-    
-    # ==================== XAI SECTION ====================
-    # Only show XAI if it's supported AND user enabled it
-    if show_batch_xai and images_for_xai and st.session_state.get('xai_supported', False):
-        st.markdown("---")
-        st.markdown('<div class="xai-section">', unsafe_allow_html=True)
-        st.markdown("## 🔍 Explainable AI - Attention Rollout")
-        st.markdown("Visualizing model attention on selected samples")
+    if upload_method == "📁 Multiple Files":
+        uploaded_files = st.file_uploader(
+            "Choose images...",
+            type=['jpg', 'jpeg', 'png'],
+            accept_multiple_files=True,
+            key="batch_upload"
+        )
+    else:
+        zip_file = st.file_uploader(
+            "Upload ZIP folder containing images...",
+            type=['zip'],
+            key="zip_upload"
+        )
         
-        with st.spinner(f"Generating attention maps for {num_xai_samples} samples..."):
-            # Select samples (balanced)
-            no_helmet_idx = [i for i, img in enumerate(images_for_xai) 
-                            if img['pred_class'] == 0]
-            with_helmet_idx = [i for i, img in enumerate(images_for_xai) 
-                              if img['pred_class'] == 1]
+        if zip_file is not None:
+            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                uploaded_files = []
+
+                for name in zip_ref.namelist():
+                    if name.lower().endswith(('.jpg', '.jpeg', '.png')):
+                        img_bytes = zip_ref.read(name)
+
+                        class FileObj:
+                            def __init__(self, name, data):
+                                self.name = name
+                                self.data = data
+
+                        uploaded_files.append(FileObj(name, img_bytes))
+
+            st.success(f"✅ Found {len(uploaded_files)} images in ZIP file")
+    
+    if uploaded_files:
+        st.info(f"📁 {len(uploaded_files)} images ready to process")
+        
+        # XAI Options
+        col_opt1, col_opt2 = st.columns(2)
+        with col_opt1:
+            show_batch_xai = st.checkbox("🔍 Generate Attention Maps (XAI)", 
+                                         value=True,
+                                         help="Generate attention visualization for selected samples")
+        with col_opt2:
+            if show_batch_xai:
+                num_xai_samples = st.slider("Number of XAI samples", 4, 20, 8, 4)
+        
+        if st.button("🚀 Process Batch", type="primary", use_container_width=True):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
             
-            selected = []
-            n_per_class = num_xai_samples // 2
+            results = []
+            images_for_xai = []
             
-            if len(no_helmet_idx) >= n_per_class:
-                selected.extend(np.random.choice(no_helmet_idx, n_per_class, replace=False))
-            else:
-                selected.extend(no_helmet_idx)
-            
-            remaining = num_xai_samples - len(selected)
-            if len(with_helmet_idx) >= remaining:
-                selected.extend(np.random.choice(with_helmet_idx, remaining, replace=False))
-            else:
-                selected.extend(with_helmet_idx)
-            
-            # Generate attention maps
-            attention_results = []
-            xai_progress = st.progress(0)
-            xai_status = st.empty()
-            
-            for idx, img_idx in enumerate(selected):
-                img_data = images_for_xai[img_idx]
-                xai_status.text(f"Generating attention map {idx+1}/{len(selected)}")
+            for idx, file in enumerate(uploaded_files):
+                status_text.text(f"Processing {idx+1}/{len(uploaded_files)}: {file.name}")
                 
                 try:
-                    attention_map, pred_class, confidence = generate_attention_rollout(
-                        img_data['image'],
+                    # Load image
+                    if hasattr(file, 'data'):
+                        image = Image.open(io.BytesIO(file.data)).convert('RGB')
+                    else:
+                        image = Image.open(file).convert('RGB')
+
+                    # ✅✅✅ CRITICAL: Add model_type parameter ✅✅✅
+                    pred_class, confidence, all_probs = predict_single(
+                        image,
                         st.session_state.model,
                         st.session_state.processor,
-                        st.session_state.device
+                        st.session_state.device,
+                        model_type=st.session_state.model_type
                     )
                     
-                    attention_results.append({
-                        'image': np.array(img_data['image']),
-                        'attention_map': attention_map,
-                        'pred_class': pred_class,
+                    results.append({
+                        'filename': file.name,
+                        'prediction': pred_class,
                         'confidence': confidence,
-                        'filename': img_data['filename']
+                        'no_helmet_prob': all_probs[0],
+                        'with_helmet_prob': all_probs[1]
                     })
-                except Exception as e:
-                    st.warning(f"⚠️ Failed to generate attention for {img_data['filename']}: {str(e)}")
+                    
+                    # Store images for XAI (only for ViT)
+                    if show_batch_xai and st.session_state.get('xai_supported', False):
+                        images_for_xai.append({
+                            'image': image,
+                            'filename': file.name,
+                            'pred_class': pred_class,
+                            'confidence': confidence
+                        })
                 
-                xai_progress.progress((idx + 1) / len(selected))
+                except Exception as e:
+                    st.error(f"❌ Error processing {file.name}: {str(e)}")
+                    results.append({
+                        'filename': file.name,
+                        'prediction': -1,
+                        'confidence': 0.0,
+                        'no_helmet_prob': 0.0,
+                        'with_helmet_prob': 0.0
+                    })
+                
+                progress_bar.progress((idx + 1) / len(uploaded_files))
             
-            xai_status.text("✅ Attention maps generated!")
+            status_text.text("✅ Processing complete!")
+            st.session_state.batch_results = results
+            st.session_state.images_for_xai = images_for_xai
             
-            # Display grid
-            if attention_results:
-                st.markdown("### 🎨 Attention Visualization Grid")
-                fig_xai = create_attention_grid(attention_results)
-                st.pyplot(fig_xai)
-            else:
-                st.warning("⚠️ No attention maps could be generated")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    elif show_batch_xai and not st.session_state.get('xai_supported', False):
-        st.info("ℹ️ Attention visualization is only available for Part 3 (Vision Transformer)")
+            # ==================== RESULTS SECTION ====================
+            st.markdown("---")
+            st.markdown("## 📊 Batch Results")
+            
+            # Summary statistics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            valid_results = [r for r in results if r['prediction'] != -1]
+            total = len(valid_results)
+            no_helmet = sum(1 for r in valid_results if r['prediction'] == 0)
+            with_helmet = sum(1 for r in valid_results if r['prediction'] == 1)
+            avg_conf = np.mean([r['confidence'] for r in valid_results]) if valid_results else 0.0
+            
+            with col1:
+                st.metric("Total Images", len(results))
+            with col2:
+                st.metric("No Helmet", no_helmet, 
+                         delta=f"{no_helmet/total*100:.1f}%" if total > 0 else "0%",
+                         delta_color="inverse")
+            with col3:
+                st.metric("With Helmet", with_helmet,
+                         delta=f"{with_helmet/total*100:.1f}%" if total > 0 else "0%",
+                         delta_color="normal")
+            with col4:
+                st.metric("Avg Confidence", f"{avg_conf:.1%}")
+            
+            failed_count = len(results) - len(valid_results)
+            if failed_count > 0:
+                st.warning(f"⚠️ {failed_count} image(s) failed to process")
+            
+            # Detailed Results
+            st.markdown("### 📋 Detailed Results")
+            
+            for idx, result in enumerate(results):
+                if result['prediction'] == -1:
+                    continue
+                    
+                file = uploaded_files[idx]
+                if hasattr(file, 'data'):
+                    img = Image.open(io.BytesIO(file.data))
+                else:
+                    img = Image.open(file)
+                
+                col_img, col_info = st.columns([1, 4])
+                
+                with col_img:
+                    st.image(img, use_container_width=True)
+                
+                with col_info:
+                    pred_label = 'With Helmet' if result['prediction'] == 1 else 'No Helmet'
+                    pred_color = '#28a745' if result['prediction'] == 1 else '#dc3545'
+                    pred_icon = '✅' if result['prediction'] == 1 else '⚠️'
+                    
+                    st.markdown(f"""
+                    <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid {pred_color}; height: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 1.1rem; font-weight: bold; color: {pred_color};">
+                                    {pred_icon} {pred_label}
+                                </div>
+                                <div style="font-size: 0.85rem; color: #666; margin-top: 0.2rem;">
+                                    📁 {result['filename']}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.3rem; font-weight: bold; color: {pred_color};">
+                                    {result['confidence']:.1%}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #666;">Confidence</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1.5rem; margin-top: 0.8rem; font-size: 0.9rem;">
+                            <div>
+                                <span style="color: #666;">No Helmet:</span>
+                                <strong style="color: #dc3545;">{result['no_helmet_prob']:.1%}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #666;">With Helmet:</span>
+                                <strong style="color: #28a745;">{result['with_helmet_prob']:.1%}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                if idx < len(results) - 1:
+                    st.markdown("<hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+            
+            # Download CSV
+            df = pd.DataFrame(valid_results)
+            df['prediction_label'] = df['prediction'].map({0: 'No Helmet', 1: 'With Helmet'})
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                "📥 Download Results (CSV)",
+                csv,
+                "helmet_detection_results.csv",
+                "text/csv",
+                use_container_width=True
+            )
+            
+            # Visualization
+            st.markdown("### 📈 Distribution")
+            col_v1, col_v2 = st.columns(2)
+            
+            with col_v1:
+                fig_pie = plot_batch_statistics(valid_results, 'pie')
+                st.pyplot(fig_pie)
+            
+            with col_v2:
+                fig_bar = plot_batch_statistics(valid_results, 'bar')
+                st.pyplot(fig_bar)
+            
+            # XAI Section
+            if show_batch_xai and images_for_xai and st.session_state.get('xai_supported', False):
+                st.markdown("---")
+                st.markdown('<div class="xai-section">', unsafe_allow_html=True)
+                st.markdown("## 🔍 Explainable AI - Attention Rollout")
+                st.markdown("Visualizing model attention on selected samples")
+                
+                with st.spinner(f"Generating attention maps for {num_xai_samples} samples..."):
+                    no_helmet_idx = [i for i, img in enumerate(images_for_xai) if img['pred_class'] == 0]
+                    with_helmet_idx = [i for i, img in enumerate(images_for_xai) if img['pred_class'] == 1]
+                    
+                    selected = []
+                    n_per_class = num_xai_samples // 2
+                    
+                    if len(no_helmet_idx) >= n_per_class:
+                        selected.extend(np.random.choice(no_helmet_idx, n_per_class, replace=False))
+                    else:
+                        selected.extend(no_helmet_idx)
+                    
+                    remaining = num_xai_samples - len(selected)
+                    if len(with_helmet_idx) >= remaining:
+                        selected.extend(np.random.choice(with_helmet_idx, remaining, replace=False))
+                    else:
+                        selected.extend(with_helmet_idx)
+                    
+                    attention_results = []
+                    xai_progress = st.progress(0)
+                    xai_status = st.empty()
+                    
+                    for idx, img_idx in enumerate(selected):
+                        img_data = images_for_xai[img_idx]
+                        xai_status.text(f"Generating attention map {idx+1}/{len(selected)}")
+                        
+                        try:
+                            attention_map, pred_class, confidence = generate_attention_rollout(
+                                img_data['image'],
+                                st.session_state.model,
+                                st.session_state.processor,
+                                st.session_state.device
+                            )
+                            
+                            attention_results.append({
+                                'image': np.array(img_data['image']),
+                                'attention_map': attention_map,
+                                'pred_class': pred_class,
+                                'confidence': confidence,
+                                'filename': img_data['filename']
+                            })
+                        except Exception as e:
+                            st.warning(f"⚠️ Failed to generate attention for {img_data['filename']}: {str(e)}")
+                        
+                        xai_progress.progress((idx + 1) / len(selected))
+                    
+                    xai_status.text("✅ Attention maps generated!")
+                    
+                    if attention_results:
+                        st.markdown("### 🎨 Attention Visualization Grid")
+                        fig_xai = create_attention_grid(attention_results)
+                        st.pyplot(fig_xai)
+                    else:
+                        st.warning("⚠️ No attention maps could be generated")
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            elif show_batch_xai and not st.session_state.get('xai_supported', False):
+                st.info("ℹ️ Attention visualization is only available for Part 3 (Vision Transformer)")
 
 # Footer
 st.markdown("---")
