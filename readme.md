@@ -784,7 +784,7 @@ Traditional ML → CNN → Vision Transformer
 
 ## 🙏 Acknowledgments
 
-- Dataset: [Roboflow Universe](https://universe.roboflow.com/aa-cqfub/h3lm-40l0-oid-xd-3dofr)
+- Dataset: [Roboflow Universe](https://universe.roboflow.com/aa-cqfub/multi-class-detection-of-risky-motorcyclist-behaviors)
 - Pretrained Models:
   - Vision Transformer (ViT-Base/16) from Google Research
   - ImageNet-21k pre-training
