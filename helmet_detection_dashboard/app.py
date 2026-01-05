@@ -13,6 +13,19 @@ from pathlib import Path
 import os
 import zipfile
 import io
+from pathlib import Path
+
+
+# Force reload modules to avoid cache issues
+import sys
+if 'model_loader' in sys.modules:
+    del sys.modules['model_loader']
+if 'prediction' in sys.modules:
+    del sys.modules['prediction']
+
+# Now import
+from model_loader import load_model
+from prediction import predict_single, predict_batch
 
 # Import local modules
 from model_loader import load_model
@@ -114,14 +127,63 @@ if 'device' not in st.session_state:
 with st.sidebar:
     st.markdown("## 🔧 Configuration")
     
-    # Model path
-    model_path = st.text_input(
-        "Model Path",
-        value="models/best_vit_model.pth",
-        help="Path to the saved ViT model"
+    # ========== TAMBAHAN BARU: Model Selection ==========
+    st.markdown("### 🎯 Select Model")
+    BASE_DIR = Path(__file__).resolve().parent
+    MODELS_DIR = BASE_DIR / "models"
+
+    
+    model_choice = st.selectbox(
+        "Choose Model Part",
+        options=[
+            "Part 3: Vision Transformer + LoRA ⭐ (Best - 94.78%)",
+            "Part 2: CNN (Good - 90.30%)",
+            "Part 1: Traditional ML SVM-RBF (Baseline - 82.84%)"
+        ],
+        index=0,
+        help="Select which model to use for prediction"
     )
     
-    # Device selection
+    st.write("📁 App directory:", BASE_DIR)
+    st.write("📁 Models directory:", MODELS_DIR)
+
+    # Determine model type and default path
+    if "Part 3" in model_choice:
+        model_type = 'vit'
+        default_path = str(MODELS_DIR / "part3_vit_model.pth")
+        model_name_display = "Vision Transformer (ViT-Base/16)"
+        xai_supported = True
+        model_description = "Uses self-attention mechanism, pretrained on ImageNet-21k"
+    elif "Part 2" in model_choice:
+        model_type = 'cnn'
+        default_path = str(MODELS_DIR / "part2_cnn_model.h5")
+        model_name_display = "CNN (3 Conv Blocks)"
+        xai_supported = False
+        model_description = "Custom CNN architecture trained from random initialization"
+    elif "Part 1" in model_choice:
+        model_type = 'traditional'
+        default_path = str(MODELS_DIR / "part1_svm_model.pkl")
+        model_name_display = "SVM-RBF + Manual Features"
+        xai_supported = False
+        model_description = "HOG + LBP + GLCM features with Support Vector Machine"
+    
+    st.info(f"📌 **Selected:** {model_name_display}")
+    st.caption(model_description)
+    
+    if not xai_supported:
+        st.warning("⚠️ XAI (Attention Rollout) not supported for this model")
+    
+    st.markdown("---")
+    # ========== AKHIR TAMBAHAN BARU ==========
+    
+    # Model path (UPDATE: ganti value)
+    model_path = st.text_input(
+        "Model Path",
+        value=default_path, 
+        help="Path to the saved model file"
+    )
+    
+    # Device selection (tetap sama, tapi update logic)
     device_option = st.radio(
         "Device",
         options=["Auto", "CPU", "CUDA"],
@@ -129,33 +191,46 @@ with st.sidebar:
         help="Select computation device"
     )
     
-    # Load model button
+    # Load model button (UPDATE logic)
     if st.button("🚀 Load Model", type="primary", use_container_width=True):
-        with st.spinner("Loading Vision Transformer model..."):
+        with st.spinner(f"Loading {model_name_display}..."):
             try:
                 # Determine device
-                if device_option == "Auto":
-                    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                elif device_option == "CUDA":
-                    if torch.cuda.is_available():
-                        device = torch.device('cuda')
+                if model_type == 'vit':
+                    # Only ViT uses GPU
+                    if device_option == "Auto":
+                        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                    elif device_option == "CUDA":
+                        if torch.cuda.is_available():
+                            device = torch.device('cuda')
+                        else:
+                            st.error("CUDA not available! Using CPU instead.")
+                            device = torch.device('cpu')
                     else:
-                        st.error("CUDA not available! Using CPU instead.")
                         device = torch.device('cpu')
                 else:
-                    device = torch.device('cpu')
+                    # CNN & Traditional ML always use CPU
+                    device = 'cpu'
+                    if device_option == "CUDA":
+                        st.info("ℹ️ CNN and Traditional ML models run on CPU only")
                 
                 # Load model
-                model, processor = load_model(model_path, device)
+                model, processor = load_model(model_path, device, model_type)
                 
+                # Store in session state
                 st.session_state.model = model
                 st.session_state.processor = processor
                 st.session_state.device = device
+                st.session_state.model_type = model_type
+                st.session_state.xai_supported = xai_supported
+                st.session_state.model_name = model_name_display
                 
-                st.success(f"✅ Model loaded on {device}!")
+                st.success(f"✅ {model_name_display} loaded successfully!")
+                st.balloons()
                 
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"❌ Error loading model: {str(e)}")
+                st.exception(e)  # Show full traceback
     
     # Model status
     st.markdown("---")
@@ -199,7 +274,7 @@ with st.sidebar:
     st.markdown("""
     <div class="about-card">
         <div class="model-comparison">
-            <strong>Part 2: CNN From Scratch</strong><br>
+            <strong>Part 2: CNN</strong><br>
             Architecture: <strong>Custom CNN (3 Conv Blocks)</strong><br>
             Parameters: 1.27M (all trainable)<br>
             Accuracy: <span style="color: #3b82f6;">90.30%</span><br>
@@ -294,6 +369,7 @@ st.markdown("""
     </h1>
     <div style="width: 150px; height: 3px; background: #3498db; margin: 1rem auto; border-radius: 2px;"></div>
     <h2 style="font-size: 1.5rem; text-align: center; color: #3498db; margin-top: 0.5rem; font-weight: 600;">
+        Best Model:
         Vision Transformer + LoRA with Explainable AI
     </h2>
     <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap;">
@@ -316,8 +392,18 @@ st.markdown("""
 # Check if model is loaded
 if st.session_state.model is None:
     st.info("👈 Please load the model from the sidebar to get started!")
+    st.markdown("""
+    <div style="background: #f0f7ff; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #3498db; margin-top: 1rem; color: #034a86;">
+        <h4>📋 Quick Start Guide:</h4>
+        <ol>
+            <li>Select a model (Part 1, 2, or 3) from the sidebar</li>
+            <li>Click <strong>"🚀 Load Model"</strong></li>
+            <li>Upload image(s) and start detecting!</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
     st.stop()
-
+    
 # Tabs
 tab1, tab2 = st.tabs(["📸 Single Image", "📁 Batch Processing"])
 
@@ -339,42 +425,49 @@ with tab1:
             image = Image.open(uploaded_file).convert('RGB')
             st.image(image, caption="Uploaded Image", use_container_width=True)
             
-            # XAI Option
+        # XAI Option (only for models that support it)
+       # ✅ KODE BENAR
+        if st.session_state.get('xai_supported', False):
             show_xai = st.checkbox("🔍 Show Attention Map (XAI)", value=True, 
-                                   help="Visualize where the model focuses")
-            
-            if st.button("🔮 Predict", type="primary", use_container_width=True):
-                with st.spinner("Analyzing image..."):
-                    start_time = time.time()
-                    
-                    # Predict
-                    pred_class, confidence, all_probs = predict_single(
+                                help="Visualize where the model focuses")
+        else:
+            show_xai = False
+            st.info("ℹ️ XAI (Attention Rollout) is only available for Part 3 (Vision Transformer)")
+
+        # ✅ Button di LUAR blok if-else, jadi selalu muncul
+        if st.button("🔮 Predict", type="primary", use_container_width=True):
+            with st.spinner("Analyzing image..."):
+                start_time = time.time()
+                
+                # Predict
+                pred_class, confidence, all_probs = predict_single(
+                    image,
+                    st.session_state.model,
+                    st.session_state.processor,
+                    st.session_state.device,
+                    model_type=st.session_state.model_type
+                )
+                
+                # Generate attention if requested
+                attention_map = None
+                if show_xai:
+                    attention_map, _, _ = generate_attention_rollout(
                         image,
                         st.session_state.model,
                         st.session_state.processor,
                         st.session_state.device
                     )
-                    
-                    # Generate attention if requested
-                    attention_map = None
-                    if show_xai:
-                        attention_map, _, _ = generate_attention_rollout(
-                            image,
-                            st.session_state.model,
-                            st.session_state.processor,
-                            st.session_state.device
-                        )
-                    
-                    inference_time = time.time() - start_time
-                    
-                    st.session_state.single_result = {
-                        'pred_class': pred_class,
-                        'confidence': confidence,
-                        'all_probs': all_probs,
-                        'inference_time': inference_time,
-                        'attention_map': attention_map,
-                        'image': np.array(image)
-                    }
+                
+                inference_time = time.time() - start_time
+                
+                st.session_state.single_result = {
+                    'pred_class': pred_class,
+                    'confidence': confidence,
+                    'all_probs': all_probs,
+                    'inference_time': inference_time,
+                    'attention_map': attention_map,
+                    'image': np.array(image)
+                }
     
     with col2:
         st.markdown("### 📊 Prediction Result")
@@ -389,7 +482,7 @@ with tab1:
                 st.markdown(f"""
                 <div class="success-box">
                     <h2 style="color: #28a745; margin: 0;">✅ {pred_name}</h2>
-                    <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem;">
+                    <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; color: #155724;">
                         Confidence: <strong>{result['confidence']:.2%}</strong>
                     </p>
                 </div>
